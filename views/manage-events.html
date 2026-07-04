@@ -1,0 +1,272 @@
+<!-- manage events tab -->
+<!-- don't forget to change dummy values -->
+<!-- CRUD will depend on the type of user; eg. member cannot add, edit, delete events -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>ISO Synch Manage Events</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+            <img src="/images/logo.png" style="width: 40px; border-radius: 5px;">
+            <div>
+                <div class="brand-name">ISO Synch</div>
+                <div class="brand-sub">Event Management</div>
+            </div>
+        </div>
+
+        <div class="nav-eyebrow">Workspace</div>
+        <nav>
+          <a class="nav-item" href="index.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            Dashboard
+          </a>
+          <a class="nav-item active" href="manage-events.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 16l2 2 4-4"/></svg>
+            Manage Events
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="profile">
+          <div class="avatar">JD</div>
+          <div>
+            <div class="profile-name">John Doe</div>
+            <div class="profile-role">Coordinator</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="panel" id="manage">
+          <div class="page-eyebrow">Workspace / Events</div>
+          <div class="page-title">Manage Events</div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Create New Event<small>Add a new listing to the upcoming events table</small></div>
+            </div>
+
+            <form id="eventForm" class="form-grid">
+              <div class="field">
+                <label>Event Name</label>
+                <input type="text" id="eventName" required placeholder="e.g., General Assembly">
+              </div>
+
+              <div class="field">
+                <label>Date</label>
+                <input type="date" id="eventDate" required>
+              </div>
+              <div class="field">
+                <label>Start Time</label>
+                <input type="time" id="eventStartTime" required>
+              </div>
+              <div class="field">
+                <label>End Time</label>
+                <input type="time" id="eventEndTime" required>
+              </div>
+              <div class="field">
+                <label>Venue</label>
+                <input type="text" id="eventVenue" required placeholder="e.g., G106">
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="eventCategory">
+                  <option value="Meeting">Meeting</option>
+                  <option value="Seminar/Workshop">Seminar/Workshop</option>
+                  <option value="Gathering">Gathering</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Cap Attendees</label>
+                <input type="number" id="eventCapacity" required min="1" placeholder="e.g., 60">
+              </div>
+              <div class="field full">
+                <label>Description</label>
+                <textarea id="eventDescription" placeholder="What's this event about?"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn" id="submitBtn">Add Event</button>
+                <button type="button" class="cancel-btn" id="cancelBtn">Cancel</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Upcoming Events<small id="eventCount">1 events scheduled</small></div>
+            </div>
+            <table>
+              <thead>
+                <tr><th>Event Name</th><th>Date &amp; Time</th><th>Venue</th><th>Category</th><th>Cap</th><th>Action</th></tr>
+              </thead>
+              <tbody id="eventTableBody">
+                <tr data-name="General Assembly" data-date="2026-07-18" data-start-time="17:00" data-end-time="19:00" data-venue="G106" data-category="Gathering" data-capacity="60" data-description="All members are required to attend this term's General Assembly. We'll be covering the annual budget review, upcoming project pitches, and open floor announcements.">
+                  <td><b>General Assembly</b></td>
+                  <td>July 18, 2026 · 5:00 PM – 7:00 PM</td>
+                  <td>G106</td>
+                  <td><span class="tag entertainment">Gathering</span></td>
+                  <td>60</td>
+                  <td>
+                    <div class="action-buttons">
+                      <button class="view-btn" onclick="window.location.href='event-details.html'">View Event Details</button>
+                      <button class="edit-btn" onclick="startEdit(this)">Edit</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div id="noEventsMessage" class="no-events" style="display:none;">No events scheduled yet. Add one above!</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      // Map each category to the existing tag color classes defined in styles.css
+      const categoryTagClass = {
+        'Meeting': 'work',
+        'Seminar/Workshop': 'personal',
+        'Gathering': 'entertainment'
+      };
+
+      // Track how many rows currently exist (starts at the 1 sample row already in the table)
+      let eventCount = document.querySelectorAll('#eventTableBody tr').length;
+      let editingRow = null; // holds the <tr> currently being edited, or null when creating
+
+      const eventForm = document.getElementById('eventForm');
+      const eventTableBody = document.getElementById('eventTableBody');
+      const noEventsMessage = document.getElementById('noEventsMessage');
+      const eventCountLabel = document.getElementById('eventCount');
+      const submitBtn = document.getElementById('submitBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const deleteBtn = document.getElementById('deleteBtn');
+
+      function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const [year, month, day] = dateStr.split('-');
+        const d = new Date(Number(year), Number(month) - 1, Number(day));
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+
+      function formatTime(timeStr) {
+        if (!timeStr) return '';
+        const [hourStr, minuteStr] = timeStr.split(':');
+        const hour = Number(hourStr);
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+        return `${hour12}:${minuteStr} ${period}`;
+      }
+
+      function updateEventCount() {
+        eventCountLabel.textContent = `${eventCount} event${eventCount === 1 ? '' : 's'} scheduled`;
+        noEventsMessage.style.display = eventCount === 0 ? 'block' : 'none';
+      }
+
+      function rowHTML(name, date, startTime, endTime, venue, category, capacity, description) {
+        const tagClass = categoryTagClass[category] || 'work';
+        return `
+          <td><b>${name}</b></td>
+          <td>${formatDate(date)} · ${formatTime(startTime)} – ${formatTime(endTime)}</td>
+          <td>${venue}</td>
+          <td><span class="tag ${tagClass}">${category}</span></td>
+          <td>${capacity}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="view-btn" onclick="window.location.href='event-details.html'">View Event Details</button>
+              <button class="edit-btn" onclick="startEdit(this)">Edit</button>
+            </div>
+          </td>
+        `;
+      }
+
+      function applyDataset(row, name, date, startTime, endTime, venue, category, capacity, description) {
+        row.dataset.name = name;
+        row.dataset.date = date;
+        row.dataset.startTime = startTime;
+        row.dataset.endTime = endTime;
+        row.dataset.venue = venue;
+        row.dataset.category = category;
+        row.dataset.capacity = capacity;
+        row.dataset.description = description || '';
+      }
+
+      // Populate the form with a row's data and switch it into "edit" mode
+      function startEdit(btn) {
+        const row = btn.closest('tr');
+        editingRow = row;
+
+        document.getElementById('eventName').value = row.dataset.name;
+        document.getElementById('eventDate').value = row.dataset.date;
+        document.getElementById('eventStartTime').value = row.dataset.startTime;
+        document.getElementById('eventEndTime').value = row.dataset.endTime;
+        document.getElementById('eventVenue').value = row.dataset.venue;
+        document.getElementById('eventCategory').value = row.dataset.category;
+        document.getElementById('eventCapacity').value = row.dataset.capacity;
+        document.getElementById('eventDescription').value = row.dataset.description;
+
+        submitBtn.textContent = 'Save Changes';
+        cancelBtn.classList.add('show');
+        deleteBtn.classList.add('show');
+        eventForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function exitEditMode() {
+        editingRow = null;
+        submitBtn.textContent = 'Add Event';
+        cancelBtn.classList.remove('show');
+        deleteBtn.classList.remove('show');
+        eventForm.reset();
+      }
+
+      cancelBtn.addEventListener('click', exitEditMode);
+      deleteBtn.addEventListener('click', exitEditMode);
+
+      eventForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const name = document.getElementById('eventName').value;
+        const date = document.getElementById('eventDate').value;
+        const startTime = document.getElementById('eventStartTime').value;
+        const endTime = document.getElementById('eventEndTime').value;
+        const venue = document.getElementById('eventVenue').value;
+        const category = document.getElementById('eventCategory').value;
+        const capacity = document.getElementById('eventCapacity').value;
+        const description = document.getElementById('eventDescription').value;
+
+        if (endTime <= startTime) {
+          alert('End time must be after start time.');
+          return;
+        }
+
+        if (editingRow) {
+          // Update the existing row in place
+          editingRow.innerHTML = rowHTML(name, date, startTime, endTime, venue, category, capacity, description);
+          applyDataset(editingRow, name, date, startTime, endTime, venue, category, capacity, description);
+          exitEditMode();
+        } else {
+          // Create a new row
+          const row = document.createElement('tr');
+          row.innerHTML = rowHTML(name, date, startTime, endTime, venue, category, capacity, description);
+          applyDataset(row, name, date, startTime, endTime, venue, category, capacity, description);
+
+          eventTableBody.appendChild(row);
+          eventCount++;
+          updateEventCount();
+          eventForm.reset();
+        }
+      });
+
+      updateEventCount();
+    </script>
+  </body>
+</html>
