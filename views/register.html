@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Register | ISO Synch</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/styles.css">
+
+</head>
+
+<body class="auth-body">
+
+<div class="auth-container">
+
+<div class="auth-card register-card">
+
+    <img src="/images/logo.png" class="auth-logo">
+
+    <h1>ISO Synch</h1>
+
+    <p class="auth-subtitle">
+        Event Management System
+    </p>
+
+    <h2>Create Account</h2>
+
+    <form id="registerForm">
+
+        <div class="register-grid">
+
+            <div class="field">
+                <label>First Name</label>
+                <input type="text" id="firstName" required>
+            </div>
+
+            <div class="field">
+                <label>Last Name</label>
+                <input type="text" id="lastName" required>
+            </div>
+
+            <div class="field full">
+                <label>Email</label>
+                <input type="email" id="email" required>
+            </div>
+
+            <div class="field">
+                <label>Mobile Number</label>
+                <input type="text" id="mobile" required>
+            </div>
+
+            <div class="field">
+                <label>Course</label>
+
+                <select id="course">
+
+                    <option>BSCS</option>
+                    <option>BSIT</option>
+                    <option>BSIS</option>
+                    <option>BSMSCS</option>
+
+                </select>
+
+            </div>
+
+            <div class="field">
+                <label>Year Level</label>
+
+                <select id="year">
+
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+
+                </select>
+
+            </div>
+
+            <div></div>
+
+            <div class="field full">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+
+            <div class="field full">
+                <label>Confirm Password</label>
+                <input type="password" id="confirmPassword" required>
+            </div>
+
+        </div>
+
+        <button
+            type="submit"
+            class="primary-btn auth-btn">
+
+            Register
+
+        </button>
+
+    </form>
+
+    <p class="auth-link">
+
+        Already have an account?
+
+        <a href="/login">
+
+            Login
+
+        </a>
+
+    </p>
+
+</div>
+
+</div>
+
+<script>
+
+document.getElementById("registerForm").addEventListener("submit", function (e) {
+
+    e.preventDefault();
+
+    const firstName = document.getElementById("firstName").value.trim();
+    const lastName = document.getElementById("lastName").value.trim();
+    const email = document.getElementById("email").value.trim().toLowerCase();
+    const mobile = document.getElementById("mobile").value.trim();
+    const course = document.getElementById("course").value;
+    const year = document.getElementById("year").value;
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+
+    // Mobile number validation
+    if (!/^09\d{9}$/.test(mobile)) {
+        alert("Please enter a valid 11-digit mobile number.");
+        return;
+    }
+
+    // Password validation
+    if (password.length < 8) {
+        alert("Password must be at least 8 characters.");
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+    }
+
+    // Get existing users
+    const users = JSON.parse(localStorage.getItem("users")) || [];
+
+    // Check duplicate email
+    const existingUser = users.find(user => user.email === email);
+
+    if (existingUser) {
+        alert("An account with this email already exists.");
+        return;
+    }
+
+    // Create new user
+    const newUser = {
+        id: Date.now(),
+        firstName,
+        lastName,
+        email,
+        mobile,
+        course,
+        year,
+        password,
+        profilePicture: ""
+    };
+
+    users.push(newUser);
+
+    localStorage.setItem("users", JSON.stringify(users));
+
+    alert("Registration successful!");
+
+    window.location.href = "/login";
+
+});
+
+</script>
+
+</body>
+
+</html>

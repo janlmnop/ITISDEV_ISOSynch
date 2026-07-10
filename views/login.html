@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login | ISO Synch</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="auth-body">
+
+<div class="auth-container">
+
+    <div class="auth-card">
+
+        <img src="/images/logo.png" class="auth-logo">
+
+        <h1>ISO Synch</h1>
+
+        <p class="auth-subtitle">
+            Event Management System
+        </p>
+
+        <h2>Welcome Back</h2>
+
+        <form id="loginForm">
+
+            <div class="field">
+                <label>Email</label>
+                <input
+                    type="email"
+                    id="loginEmail"
+                    required
+                >
+            </div>
+
+            <div class="field password-field">
+                <label>Password</label>
+                <input
+                    type="password"
+                    id="loginPassword"
+                    required
+                >
+            </div>
+
+            <button
+                type="submit"
+                class="primary-btn auth-btn">
+                Login
+            </button>
+
+        </form>
+
+        <p class="auth-link">
+
+            Don't have an account?
+
+            <a href="/register">
+                Register
+            </a>
+
+        </p>
+
+    </div>
+
+</div>
+
+<script>
+
+document.getElementById("loginForm").addEventListener("submit", function(e){
+
+    e.preventDefault();
+
+    const email = document
+        .getElementById("loginEmail")
+        .value
+        .trim()
+        .toLowerCase();
+
+    const password = document
+        .getElementById("loginPassword")
+        .value;
+
+    const users = JSON.parse(localStorage.getItem("users")) || [];
+
+    const user = users.find(u =>
+        u.email === email &&
+        u.password === password
+    );
+
+    if(!user){
+        alert("Invalid email or password.");
+        return;
+    }
+
+    // Save logged-in user
+    localStorage.setItem("currentUser", JSON.stringify(user));
+
+    window.location.href="/dashboard";
+
+});
+
+</script>
+
+</body>
+</html>
