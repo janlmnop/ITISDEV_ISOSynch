@@ -110,19 +110,6 @@
                 <tr><th>Event Name</th><th>Date &amp; Time</th><th>Venue</th><th>Category</th><th>Cap</th><th>Action</th></tr>
               </thead>
               <tbody id="eventTableBody">
-                <tr data-name="General Assembly" data-date="2026-07-18" data-start-time="17:00" data-end-time="19:00" data-venue="G106" data-category="Gathering" data-capacity="60" data-description="All members are required to attend this term's General Assembly. We'll be covering the annual budget review, upcoming project pitches, and open floor announcements.">
-                  <td><b>General Assembly</b></td>
-                  <td>July 18, 2026 · 5:00 PM – 7:00 PM</td>
-                  <td>G106</td>
-                  <td><span class="tag entertainment">Gathering</span></td>
-                  <td>60</td>
-                  <td>
-                    <div class="action-buttons">
-                      <button class="view-btn" onclick="window.location.href='/event-details'">View Event Details</button>
-                      <button class="edit-btn" onclick="startEdit(this)">Edit</button>
-                    </div>
-                  </td>
-                </tr>
               </tbody>
             </table>
             <div id="noEventsMessage" class="no-events" style="display:none;">No events scheduled yet. Add one above!</div>
@@ -166,7 +153,26 @@
       };
 
       // Track how many rows currently exist (starts at the 1 sample row already in the table)
-      let eventCount = document.querySelectorAll('#eventTableBody tr').length;
+      let events = JSON.parse(localStorage.getItem("events"));
+
+      if (!events) {
+        events = [
+          {
+            name: "General Assembly",
+          date: "2026-07-18",
+          startTime: "17:00",
+          endTime: "19:00",
+          venue: "G106",
+          category: "Gathering",
+          capacity: 60,
+          description: "All members are required to attend this term's General Assembly."
+          }
+        ];
+
+        localStorage.setItem("events", JSON.stringify(events));
+      }
+
+      let eventCount = events.length;
       let editingRow = null; // holds the <tr> currently being edited, or null when creating
 
       const eventForm = document.getElementById('eventForm');
@@ -175,7 +181,7 @@
       const eventCountLabel = document.getElementById('eventCount');
       const submitBtn = document.getElementById('submitBtn');
       const cancelBtn = document.getElementById('cancelBtn');
-      const deleteBtn = document.getElementById('deleteBtn');
+      // const deleteBtn = document.getElementById('deleteBtn');
 
       function formatDate(dateStr) {
         if (!dateStr) return '';
@@ -208,7 +214,7 @@
           <td>${capacity}</td>
           <td>
             <div class="action-buttons">
-              <button class="view-btn" onclick="window.location.href='event-details.html'">View Event Details</button>
+              <button class="view-btn" onclick="window.location.href='/event-details'">View Event Details</button>
               <button class="edit-btn" onclick="startEdit(this)">Edit</button>
             </div>
           </td>
@@ -224,6 +230,35 @@
         row.dataset.category = category;
         row.dataset.capacity = capacity;
         row.dataset.description = description || '';
+      }
+
+      function addRow(event) {
+        const row = document.createElement("tr");
+
+        row.innerHTML = rowHTML(
+          event.name,
+          event.date,
+          event.startTime,
+          event.endTime,
+          event.venue,
+          event.category,
+          event.capacity,
+          event.description
+        );
+
+        applyDataset(
+          row,
+          event.name,
+          event.date,
+          event.startTime,
+          event.endTime,
+          event.venue,
+          event.category,
+          event.capacity,
+          event.description
+        );
+
+        eventTableBody.appendChild(row);
       }
 
       // Populate the form with a row's data and switch it into "edit" mode
@@ -242,7 +277,7 @@
 
         submitBtn.textContent = 'Save Changes';
         cancelBtn.classList.add('show');
-        deleteBtn.classList.add('show');
+        // deleteBtn.classList.add('show');
         eventForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
@@ -250,12 +285,12 @@
         editingRow = null;
         submitBtn.textContent = 'Add Event';
         cancelBtn.classList.remove('show');
-        deleteBtn.classList.remove('show');
+        // deleteBtn.classList.remove('show');
         eventForm.reset();
       }
 
       cancelBtn.addEventListener('click', exitEditMode);
-      deleteBtn.addEventListener('click', exitEditMode);
+      // deleteBtn.addEventListener('click', exitEditMode);
 
       eventForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -277,20 +312,55 @@
         if (editingRow) {
           // Update the existing row in place
           editingRow.innerHTML = rowHTML(name, date, startTime, endTime, venue, category, capacity, description);
+
           applyDataset(editingRow, name, date, startTime, endTime, venue, category, capacity, description);
+
+          const index = Array.from(eventTableBody.children).indexOf(editingRow);
+
+          events[index] = {
+            name,
+            date,
+            startTime,
+            endTime,
+            venue,
+            category,
+            capacity,
+            description
+          };
+
+          localStorage.setItem("events", JSON.stringify(events));
+
           exitEditMode();
         } else {
-          // Create a new row
-          const row = document.createElement('tr');
-          row.innerHTML = rowHTML(name, date, startTime, endTime, venue, category, capacity, description);
-          applyDataset(row, name, date, startTime, endTime, venue, category, capacity, description);
+          const newEvent = {
+            name,
+            date,
+            startTime,
+            endTime,
+            venue,
+            category,
+            capacity,
+            description
+          };
 
-          eventTableBody.appendChild(row);
-          eventCount++;
+          events.push(newEvent);
+
+          localStorage.setItem("events", JSON.stringify(events));
+
+          addRow(newEvent);
+
+          eventCount = events.length;
           updateEventCount();
+
           eventForm.reset();
         }
       });
+
+      eventTableBody.innerHTML = "";
+
+      events.forEach(event => {
+        addRow(event);
+      })
 
       updateEventCount();
     </script>
