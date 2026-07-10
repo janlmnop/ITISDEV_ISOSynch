@@ -61,7 +61,7 @@
 
                     <!-- TODO: change dummy values -->
                     <div class="stats">
-                        <div class="stat n1"><div class="stat-num">01</div><div class="stat-label">Upcoming events</div></div>
+                        <div class="stat n1"><div class="stat-num" id="upcomingCount">0</div><div class="stat-label">Upcoming events</div></div>
                         <div class="stat n2"><div class="stat-num">45</div><div class="stat-label">Registered guests</div></div>
                         <div class="stat n3"><div class="stat-num">01</div><div class="stat-label">Venues booked</div></div>
                     </div>
@@ -71,13 +71,7 @@
                             <div class="card-title">Upcoming Events<small>Upcoming ISO seminars, meetings, and such</small></div>
                         </div>
 
-                        <div class="event-row">
-                            <div class="date-chip"><b>18</b><span>Jul</span></div>
-                            <div>
-                                <div class="event-title">General Assembly</div>
-                                <div class="event-meta">G106<span class="tag entertainment">Gathering</span></div>
-                            </div>
-                            <button class="ghost-btn" onclick="window.location.href='/event-details'">Details</button>
+                        <div id="eventsContainer">
                         </div>  
                     </div>
                 </section>
@@ -87,6 +81,9 @@
         <script>
 
             const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+            const events = JSON.parse(localStorage.getItem("events"));
+
+            document.getElementById("upcomingCount").textContent = events.length;
 
             // Redirect to login if no user is logged in
             if (!currentUser) {
@@ -111,6 +108,65 @@
                 window.location.href = "/login";
 
             }
+
+            // Map each category to the existing tag color classes defined in styles.css
+            const categoryTagClass = {
+                'Meeting': 'work',
+                'Seminar/Workshop': 'personal',
+                'Gathering': 'entertainment'
+            };
+
+            // Creates a default entry if the object is empty
+            if (!events) {
+                events = [
+                    {   
+                        name: "General Assembly",
+                        date: "2026-07-18",
+                        startTime: "17:00",
+                        endTime: "19:00",
+                        venue: "G106",
+                        category: "Gathering",
+                        capacity: 60,
+                        description: "All members are required to attend this term's General Assembly."
+                    }
+                ];
+
+                localStorage.setItem("events", JSON.stringify(events));
+            }
+
+            function formatDate(dateStr) {
+                const date = new Date(dateStr);
+
+                return {
+                    day: date.getDate(),
+                    month: date.toLocaleString("en-US", { month: "short" })
+                };
+            }
+
+            const container = document.getElementById("eventsContainer");
+
+            events.sort((a, b) => {
+                return new Date(a.date + "T" + a.startTime) -
+                new Date(b.date + "T" + b.startTime);
+            });
+
+            events.forEach(event => {
+                const formattedDate = formatDate(event.date);
+
+                container.innerHTML += ` 
+                    <div class="event-row">
+                            <div class="date-chip">
+                                <b>${formattedDate.day}</b>
+                                <span>${formattedDate.month}</span>
+                            </div>
+                            <div>
+                                <div class="event-title">${event.name}</div>
+                                <div class="event-meta">${event.venue}<span class="tag ${categoryTagClass[event.category]}">${event.category}</span></div>
+                            </div>
+                            <button class="ghost-btn" onclick="window.location.href='/event-details'">Details</button>
+                        </div>  
+                `;
+            })
 
         </script>
 

@@ -152,9 +152,9 @@
         'Gathering': 'entertainment'
       };
 
-      // Track how many rows currently exist (starts at the 1 sample row already in the table)
       let events = JSON.parse(localStorage.getItem("events"));
 
+      // Creates a default entry if the object is empty
       if (!events) {
         events = [
           {
