@@ -25,11 +25,11 @@
 
         <div class="nav-eyebrow">Workspace</div>
         <nav>
-          <a class="nav-item" href="index.html">
+          <a class="nav-item" href="/dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
             Dashboard
           </a>
-          <a class="nav-item active" href="manage-events.html">
+          <a class="nav-item active" href="/manage-events">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 16l2 2 4-4"/></svg>
             Manage Events
           </a>
@@ -38,9 +38,9 @@
         <div class="sidebar-spacer"></div>
 
         <div class="profile">
-          <div class="avatar">JD</div>
+          <div class="avatar" id="avatar">JD</div>
           <div>
-            <div class="profile-name">John Doe</div>
+            <div class="profile-name" id="profileName">John Doe</div>
             <div class="profile-role">Coordinator</div>
           </div>
         </div>
@@ -118,7 +118,7 @@
                   <td>60</td>
                   <td>
                     <div class="action-buttons">
-                      <button class="view-btn" onclick="window.location.href='event-details.html'">View Event Details</button>
+                      <button class="view-btn" onclick="window.location.href='/event-details'">View Event Details</button>
                       <button class="edit-btn" onclick="startEdit(this)">Edit</button>
                     </div>
                   </td>
@@ -132,6 +132,32 @@
     </div>
 
     <script>
+      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+      // Redirect to login if no user is logged in
+      if (!currentUser) {
+        window.location.href = "/login";
+      } else {
+
+        // Display logged-in user's name
+        document.getElementById("profileName").textContent =
+          currentUser.firstName + " " + currentUser.lastName;
+
+        // Display initials as avatar
+        document.getElementById("avatar").textContent =
+          currentUser.firstName.charAt(0).toUpperCase() +
+          currentUser.lastName.charAt(0).toUpperCase();
+
+      }
+
+      function logout() {
+
+        localStorage.removeItem("currentUser");
+
+        window.location.href = "/login";
+
+      }
+
       // Map each category to the existing tag color classes defined in styles.css
       const categoryTagClass = {
         'Meeting': 'work',

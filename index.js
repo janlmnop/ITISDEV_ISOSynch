@@ -24,6 +24,14 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
+app.get('/manage-events', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'manage-events.html'));
+});
+
+app.get('/event-details', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'event-details.html'));
+});
+
 app.listen(port, () => {
   console.log(`App listening on port ${port}`);
 });
