@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>ISO Synch — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/images/logo.png" style="width: 40px; border-radius: 5px;">
+          <div>
+            <div class="brand-name">ISO Synch</div>
+            <div class="brand-sub">Admin Dashboard</div>
+          </div>
+        </div>
+
+        <div class="nav-eyebrow">Manage</div>
+        <nav>
+          <a class="nav-item" id="nav-events" href="#events">Events</a>
+          <a class="nav-item" id="nav-users" href="#users">Users</a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="profile">
+          <div class="avatar" id="avatar">AD</div>
+          <div>
+            <div class="profile-name" id="profileName">Admin</div>
+            <div class="profile-role">Administrator</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </aside>
+
+      <main class="main">
+        <section class="panel">
+          <div class="topline">
+            <div>
+              <div class="page-eyebrow">Admin</div>
+              <div class="page-title" id="pageTitle">Event Management</div>
+            </div>
+          </div>
+
+          <div id="eventsView" class="card">
+            <div class="card-head"><div class="card-title">Events<small>Drafts and published events</small></div></div>
+            <table id="eventsTable"><thead><tr><th>Title</th><th>Organizer</th><th>Date</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+
+          <div id="usersView" class="card" style="display:none;margin-top:16px">
+            <div class="card-head"><div class="card-title">Users<small>Registered users</small></div></div>
+            <table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Course</th><th>Role</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
+      if (currentUser){
+        document.getElementById('profileName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+        document.getElementById('avatar').textContent = (currentUser.firstName||'A').charAt(0).toUpperCase() + (currentUser.lastName||'D').charAt(0).toUpperCase();
+      }
+      function logout(){ localStorage.removeItem('currentUser'); window.location.href='/login'; }
+    </script>
+
+    <script src="/js/admin.js"></script>
+  </body>
+</html>
