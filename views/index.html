@@ -143,13 +143,16 @@
                 };
             }
 
+            // HTML container for all the events
             const container = document.getElementById("eventsContainer");
 
+            // Sorts events by latest
             events.sort((a, b) => {
                 return new Date(a.date + "T" + a.startTime) -
                 new Date(b.date + "T" + b.startTime);
             });
 
+            // Displays every event in the object by separating them into its own row
             events.forEach(event => {
                 const formattedDate = formatDate(event.date);
 
