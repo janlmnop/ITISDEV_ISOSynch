@@ -9,7 +9,8 @@
     "year": "3",
     "password": "password",
     "profilePicture": "",
-    "status": "active"
+    "status": "active",
+    "role": "admin"
   },
   {
     "id": "1784267779435",
@@ -21,7 +22,8 @@
     "year": "2",
     "password": "hello123",
     "profilePicture": "",
-    "status": "active"
+    "status": "active",
+    "role": "member"
   },
   {
     "id": "1784306909846",
@@ -33,6 +35,7 @@
     "year": "1",
     "password": "password",
     "profilePicture": "",
-    "status": "active"
+    "status": "active",
+    "role": "member"
   }
 ]

@@ -6,8 +6,30 @@
   const submitButton = document.getElementById('submitBtn');
   const cancelButton = document.getElementById('cancelBtn');
   const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
+  const eventSearch = document.getElementById('eventSearch');
+  const eventCategoryFilter = document.getElementById('eventCategoryFilter');
   let events = [];
   let editingId = null;
+
+  // Role & Permissions (SCRUM-9): identify the caller's role to the server's
+  // requireAdmin middleware, same pattern as admin.js.
+  function currentUserRole() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    return currentUser ? currentUser.role : '';
+  }
+  function adminHeaders(extra) {
+    return Object.assign({ 'x-user-role': currentUserRole() }, extra || {});
+  }
+
+  // Search & Filter (SCRUM-12): build the query string from the search box /
+  // category dropdown so the results match what's on screen.
+  function eventsQuery() {
+    const params = new URLSearchParams();
+    if (eventSearch && eventSearch.value.trim()) params.set('search', eventSearch.value.trim());
+    if (eventCategoryFilter && eventCategoryFilter.value) params.set('category', eventCategoryFilter.value);
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -40,7 +62,7 @@
   }
 
   async function loadEvents() {
-    const response = await fetch('/api/admin/events');
+    const response = await fetch(`/api/admin/events${eventsQuery()}`, { headers: adminHeaders() });
     if (!response.ok) throw new Error('Unable to load events');
     events = await response.json();
     events.sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
@@ -70,7 +92,7 @@
         description: String(legacyEvent.description || '').trim()
       };
       if (!payload.date || !payload.startTime || !payload.endTime || !payload.venue || !Number.isInteger(payload.capacity) || payload.capacity < 1) continue;
-      const response = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await fetch('/api/admin/events', { method: 'POST', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(payload) });
       if (response.ok) existingNames.add(name.toLowerCase());
     }
   }
@@ -126,7 +148,7 @@
     }
     try {
       const url = editingId ? `/api/admin/events/${encodeURIComponent(editingId)}` : '/api/admin/events';
-      const response = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(payload) });
       if (!response.ok) throw new Error('Unable to save event');
       exitEditMode();
       await loadEvents();
@@ -134,6 +156,18 @@
       alert('Unable to save the event. Please try again.');
     }
   }, true);
+
+  // Search & Filter (SCRUM-12): re-query on input (debounced) / change.
+  let searchDebounce;
+  if (eventSearch) {
+    eventSearch.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(loadEvents, 250);
+    });
+  }
+  if (eventCategoryFilter) {
+    eventCategoryFilter.addEventListener('change', loadEvents);
+  }
 
   (async () => {
     try {

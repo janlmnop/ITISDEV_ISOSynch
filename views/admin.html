@@ -46,6 +46,21 @@
 
           <div id="eventsView" class="card">
             <div class="card-head"><div class="card-title">Events<small>Drafts and published events</small></div></div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="field">
+                <label>Search</label>
+                <input type="text" id="eventSearch" placeholder="Search by name, venue, description...">
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="eventCategoryFilter">
+                  <option value="">All categories</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Seminar/Workshop">Seminar/Workshop</option>
+                  <option value="Gathering">Gathering</option>
+                </select>
+              </div>
+            </div>
             <table id="eventsTable"><thead><tr><th>Title</th><th>Organizer</th><th>Date</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
           </div>
 
@@ -60,7 +75,12 @@
 
     <script>
       const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
-      if (currentUser){
+      // Role & Permissions (SCRUM-9): only admins may view the admin dashboard.
+      if (!currentUser) {
+        window.location.href = '/login';
+      } else if (currentUser.role !== 'admin') {
+        window.location.href = '/dashboard';
+      } else {
         document.getElementById('profileName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
         document.getElementById('avatar').textContent = (currentUser.firstName||'A').charAt(0).toUpperCase() + (currentUser.lastName||'D').charAt(0).toUpperCase();
       }

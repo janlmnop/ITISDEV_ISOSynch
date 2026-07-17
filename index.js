@@ -14,6 +14,37 @@ const eventsFile = path.join(dataDir, 'events.json');
 const usersFile = path.join(dataDir, 'users.json');
 const modFile = path.join(dataDir, 'moderation.json');
 
+// =========================
+// Role & Permissions (SCRUM-9)
+// =========================
+// This app has no session/cookie auth yet, so the logged-in user's role is
+// passed from the client (mirrors the existing `x-moderator` header pattern
+// used by the delete endpoints below). Every /api/admin/* route requires the
+// caller to send `x-user-role: admin`.
+function requireAdmin(req, res, next) {
+  const role = req.get('x-user-role');
+  if (role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: admin role required' });
+  }
+  next();
+}
+
+// Case-insensitive "does this event match the search/category filters" check,
+// shared by the public and admin event listing endpoints (SCRUM-12).
+function matchesFilters(event, { search, category }) {
+  if (category && String(event.category) !== String(category)) return false;
+  if (search) {
+    const needle = String(search).trim().toLowerCase();
+    if (needle) {
+      const haystack = [event.name, event.venue, event.description, event.organizer]
+        .map(value => String(value || '').toLowerCase())
+        .join(' ');
+      if (!haystack.includes(needle)) return false;
+    }
+  }
+  return true;
+}
+
 async function ensureDataFiles() {
   try { await fs.promises.mkdir(dataDir, { recursive: true }); } catch (e) {}
   const starterEvents = () => [{
@@ -54,11 +85,12 @@ async function appendModeration(entry) {
   await writeJson(modFile, arr);
 }
 
-// Public events (only published)
+// Public events (only published), with optional ?search= and ?category= filters (SCRUM-12)
 app.get('/api/events', async (req, res) => {
   try {
+    const { search, category } = req.query;
     const events = await readJson(eventsFile);
-    res.json(events.filter(e => e.status === 'published'));
+    res.json(events.filter(e => e.status === 'published' && matchesFilters(e, { search, category })));
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
 
@@ -93,15 +125,16 @@ app.post('/api/events/:id/registrations', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
 
-// Admin: master list of drafted/published events (no deleted)
-app.get('/api/admin/events', async (req, res) => {
+// Admin: master list of drafted/published events (no deleted), with optional search/category filters
+app.get('/api/admin/events', requireAdmin, async (req, res) => {
   try {
+    const { search, category } = req.query;
     const events = await readJson(eventsFile);
-    res.json(events.filter(e => e.status === 'published' || e.status === 'draft'));
+    res.json(events.filter(e => (e.status === 'published' || e.status === 'draft') && matchesFilters(e, { search, category })));
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
 
-app.post('/api/admin/events', async (req, res) => {
+app.post('/api/admin/events', requireAdmin, async (req, res) => {
   try {
     const { name, date, startTime, endTime, venue, category, capacity, description } = req.body || {};
     if (![name, date, startTime, endTime, venue, category].every(value => typeof value === 'string' && value.trim()) || !Number.isInteger(Number(capacity)) || Number(capacity) < 1) {
@@ -116,7 +149,7 @@ app.post('/api/admin/events', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
 
-app.put('/api/admin/events/:id', async (req, res) => {
+app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
   try {
     const events = await readJson(eventsFile);
     const event = events.find(e => String(e.id) === String(req.params.id) && e.status !== 'deleted');
@@ -132,7 +165,7 @@ app.put('/api/admin/events/:id', async (req, res) => {
 });
 
 // Admin users list
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
   try {
     const users = await readJson(usersFile);
     res.json(users.filter(u => u.status !== 'deleted'));
@@ -140,7 +173,7 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 // Admin delete event (mark deleted + log)
-app.delete('/api/admin/events/:id', async (req, res) => {
+app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
   try {
     const events = await readJson(eventsFile);
     const idx = events.findIndex(e => String(e.id) === String(req.params.id));
@@ -154,7 +187,7 @@ app.delete('/api/admin/events/:id', async (req, res) => {
 });
 
 // Admin delete user (mark deleted + log)
-app.delete('/api/admin/users/:id', async (req, res) => {
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   try {
     const users = await readJson(usersFile);
     const idx = users.findIndex(u => String(u.id) === String(req.params.id));
@@ -194,7 +227,7 @@ app.post('/api/register', async (req, res) => {
     if (users.some(user => String(user.email).toLowerCase() === normalizedEmail && user.status !== 'deleted')) {
       return res.status(409).json({ error: 'email already registered' });
     }
-    const user = { id: Date.now().toString(), firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, mobile, course, year, password, profilePicture: '', status: 'active' };
+    const user = { id: Date.now().toString(), firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, mobile, course, year, password, profilePicture: '', status: 'active', role: 'member' };
     users.push(user);
     await writeJson(usersFile, users);
     const { password: _password, ...safeUser } = user;

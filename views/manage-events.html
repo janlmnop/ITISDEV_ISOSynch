@@ -105,6 +105,21 @@
             <div class="card-head">
               <div class="card-title">Upcoming Events<small id="eventCount">1 events scheduled</small></div>
             </div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="field">
+                <label>Search</label>
+                <input type="text" id="eventSearch" placeholder="Search by name, venue, description...">
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="eventCategoryFilter">
+                  <option value="">All categories</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Seminar/Workshop">Seminar/Workshop</option>
+                  <option value="Gathering">Gathering</option>
+                </select>
+              </div>
+            </div>
             <table>
               <thead>
                 <tr><th>Event Name</th><th>Date &amp; Time</th><th>Venue</th><th>Category</th><th>Cap</th><th>Action</th></tr>
@@ -121,9 +136,14 @@
     <script>
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-      // Redirect to login if no user is logged in
+      // Redirect to login if no user is logged in.
+      // Role & Permissions (SCRUM-9): members can't add/edit/delete events,
+      // so only admins get to use this page — send members back to the
+      // read-only dashboard instead.
       if (!currentUser) {
         window.location.href = "/login";
+      } else if (currentUser.role !== "admin") {
+        window.location.href = "/dashboard";
       } else {
 
         // Display logged-in user's name

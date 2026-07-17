@@ -28,7 +28,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
                         Dashboard
                     </a>
-                    <a class="nav-item" href="/manage-events">
+                    <a class="nav-item" id="navManageEvents" href="/manage-events">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 16l2 2 4-4"/></svg>
                         Manage Events
                     </a>
@@ -51,7 +51,7 @@
                         <div class="profile-name" id="profileName">
                             John Doe
                         </div>
-                        <div class="profile-role">Coordinator</div>
+                        <div class="profile-role" id="profileRole">Member</div>
                     </div>
                 </div>
 
@@ -78,8 +78,24 @@
                             <div class="card-title">Upcoming Events<small>Upcoming ISO seminars, meetings, and such</small></div>
                         </div>
 
+                        <div class="form-grid" style="margin-bottom:12px">
+                            <div class="field">
+                                <label for="eventSearch">Search</label>
+                                <input type="text" id="eventSearch" placeholder="Search by name, venue, description...">
+                            </div>
+                            <div class="field">
+                                <label for="eventCategoryFilter">Category</label>
+                                <select id="eventCategoryFilter">
+                                    <option value="">All categories</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Seminar/Workshop">Seminar/Workshop</option>
+                                    <option value="Gathering">Gathering</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div id="eventsContainer">
-                        </div>  
+                        </div>
                     </div>
                 </section>
             </main>
@@ -88,13 +104,27 @@
         <script>
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
+            const eventSearch = document.getElementById('eventSearch');
+            const eventCategoryFilter = document.getElementById('eventCategoryFilter');
 
             if (!currentUser) {
                 window.location.href = '/login';
             } else {
                 document.getElementById('profileName').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
                 document.getElementById('avatar').textContent = `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
+                // Role & Permissions (SCRUM-9): show the real role, and hide
+                // the Manage Events link from members (they can't add/edit/
+                // delete events, so the page would just redirect them back).
+                const role = currentUser.role || 'member';
+                document.getElementById('profileRole').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                if (role !== 'admin') {
+                    const navManageEvents = document.getElementById('navManageEvents');
+                    if (navManageEvents) navManageEvents.style.display = 'none';
+                }
                 loadEvents();
+                let searchDebounce;
+                if (eventSearch) eventSearch.addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(loadEvents, 250); });
+                if (eventCategoryFilter) eventCategoryFilter.addEventListener('change', loadEvents);
             }
 
             function logout() {
@@ -111,10 +141,18 @@
                 return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
             }
 
+            function eventsQuery() {
+                const params = new URLSearchParams();
+                if (eventSearch && eventSearch.value.trim()) params.set('search', eventSearch.value.trim());
+                if (eventCategoryFilter && eventCategoryFilter.value) params.set('category', eventCategoryFilter.value);
+                const qs = params.toString();
+                return qs ? `?${qs}` : '';
+            }
+
             async function loadEvents() {
                 const container = document.getElementById('eventsContainer');
                 try {
-                    const response = await fetch('/api/events');
+                    const response = await fetch(`/api/events${eventsQuery()}`);
                     if (!response.ok) throw new Error('Unable to load events');
                     const events = await response.json();
                     events.sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));

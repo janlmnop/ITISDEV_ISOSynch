@@ -6,27 +6,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const navEvents = document.getElementById('nav-events');
   const navUsers = document.getElementById('nav-users');
   const pageTitle = document.getElementById('pageTitle');
+  const eventSearch = document.getElementById('eventSearch');
+  const eventCategoryFilter = document.getElementById('eventCategoryFilter');
 
   function esc(s){ return String(s||'').replace(/[&<>\"]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+  // Role & Permissions (SCRUM-9): every /api/admin/* call must identify the
+  // caller's role so the server's requireAdmin middleware can authorize it.
+  function currentUserRole(){
+    const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
+    return currentUser ? currentUser.role : '';
+  }
+  function adminHeaders(extra){
+    return Object.assign({ 'x-user-role': currentUserRole() }, extra || {});
+  }
+
+  // Search & Filter (SCRUM-12): build the query string from the current
+  // search box / category dropdown values.
+  function eventsQuery(){
+    const params = new URLSearchParams();
+    if (eventSearch && eventSearch.value.trim()) params.set('search', eventSearch.value.trim());
+    if (eventCategoryFilter && eventCategoryFilter.value) params.set('category', eventCategoryFilter.value);
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }
+
   async function loadEvents(){
-    const res = await fetch('/api/admin/events');
+    const res = await fetch(`/api/admin/events${eventsQuery()}`, { headers: adminHeaders() });
     const items = await res.json();
     eventsTbody.innerHTML = '';
     for (const e of items) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${esc(e.title)}</td><td>${esc(e.organizer||'')}</td><td>${esc(e.date||'')}</td><td>${esc(e.location||'')}</td><td>${esc(e.status||'')}</td><td><button class="view-btn" data-id="${e.id}">View</button> <button class="delete-btn" data-id="${e.id}">Delete</button></td>`;
+      tr.innerHTML = `<td>${esc(e.name)}</td><td>${esc(e.organizer||'')}</td><td>${esc(e.date||'')}</td><td>${esc(e.venue||'')}</td><td>${esc(e.status||'')}</td><td><button class="view-btn" data-id="${e.id}">View</button> <button class="delete-btn" data-id="${e.id}">Delete</button></td>`;
       eventsTbody.appendChild(tr);
     }
   }
 
   async function loadUsers(){
-    const res = await fetch('/api/admin/users');
+    const res = await fetch('/api/admin/users', { headers: adminHeaders() });
     const items = await res.json();
     usersTbody.innerHTML = '';
     for (const u of items) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${esc(u.firstName+' '+u.lastName)}</td><td>${esc(u.email)}</td><td>${esc(u.course||'')}</td><td>${esc(u.role||'user')}</td><td><button class="delete-user" data-id="${u.id}">Delete</button></td>`;
+      tr.innerHTML = `<td>${esc(u.firstName+' '+u.lastName)}</td><td>${esc(u.email)}</td><td>${esc(u.course||'')}</td><td>${esc(u.role||'member')}</td><td><button class="delete-user" data-id="${u.id}">Delete</button></td>`;
       usersTbody.appendChild(tr);
     }
   }
@@ -50,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = btn.dataset.id;
       const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
       const moderator = currentUser ? (currentUser.firstName+' '+currentUser.lastName) : 'unknown';
-      await fetch(`/api/admin/events/${id}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ moderator }) });
+      await fetch(`/api/admin/events/${id}`, { method:'DELETE', headers: adminHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ moderator }) });
       loadEvents();
     }
     if (btn.classList.contains('delete-user')){
@@ -58,10 +80,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = btn.dataset.id;
       const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
       const moderator = currentUser ? (currentUser.firstName+' '+currentUser.lastName) : 'unknown';
-      await fetch(`/api/admin/users/${id}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ moderator }) });
+      await fetch(`/api/admin/users/${id}`, { method:'DELETE', headers: adminHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ moderator }) });
       loadUsers();
     }
   });
+
+  // Search & Filter (SCRUM-12): re-query on input (debounced) / change.
+  let searchDebounce;
+  if (eventSearch) {
+    eventSearch.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(loadEvents, 250);
+    });
+  }
+  if (eventCategoryFilter) {
+    eventCategoryFilter.addEventListener('change', loadEvents);
+  }
 
   // hash navigation
   function navigate(){
