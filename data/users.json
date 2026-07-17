@@ -22,5 +22,17 @@
     "password": "hello123",
     "profilePicture": "",
     "status": "active"
+  },
+  {
+    "id": "1784306909846",
+    "firstName": "heartsteel",
+    "lastName": "aguado",
+    "email": "steel@dlsu.edu.ph",
+    "mobile": "09369118178",
+    "course": "BSIT",
+    "year": "1",
+    "password": "password",
+    "profilePicture": "",
+    "status": "active"
   }
 ]

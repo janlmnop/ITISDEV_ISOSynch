@@ -202,6 +202,94 @@ app.post('/api/register', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
 
+// =========================
+// Profile Management
+// =========================
+
+// Get a user's profile
+app.get('/api/profile/:id', async (req, res) => {
+  try {
+    const users = await readJson(usersFile);
+
+    const user = users.find(
+      u => String(u.id) === String(req.params.id) && u.status !== 'deleted'
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { password, ...safeUser } = user;
+    res.json(safeUser);
+
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
+// Update a user's profile
+app.put('/api/profile/:id', async (req, res) => {
+  try {
+
+    const {
+      firstName,
+      lastName,
+      mobile,
+      course,
+      year,
+      profilePicture
+    } = req.body;
+
+    if (
+      !firstName ||
+      !lastName ||
+      !mobile ||
+      !course ||
+      !year
+    ) {
+      return res.status(400).json({
+        error: 'Missing required fields'
+      });
+    }
+
+    if (!/^09\d{9}$/.test(mobile)) {
+      return res.status(400).json({
+        error: 'Invalid mobile number'
+      });
+    }
+
+    const users = await readJson(usersFile);
+
+    const user = users.find(
+      u => String(u.id) === String(req.params.id) && u.status !== 'deleted'
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    user.firstName = firstName.trim();
+    user.lastName = lastName.trim();
+    user.mobile = mobile;
+    user.course = course;
+    user.year = year;
+    user.profilePicture = profilePicture || '';
+
+    await writeJson(usersFile, users);
+
+    const { password, ...safeUser } = user;
+
+    res.json(safeUser);
+
+  } catch (err) {
+    res.status(500).json({
+      error: 'Failed to update profile'
+    });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
@@ -216,6 +304,10 @@ app.get('/register', (req, res) => {
 
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
+
+app.get('/profile', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'profile.html'));
 });
 
 app.get('/admin', (req, res) => {
