@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1784267380035",
+    "firstName": "Janelle",
+    "lastName": "Daguiso",
+    "email": "janelle_daguiso@dlsu.edu.ph",
+    "mobile": "09111111111",
+    "course": "BSIT",
+    "year": "3",
+    "password": "password",
+    "profilePicture": "",
+    "status": "active"
+  },
+  {
+    "id": "1784267779435",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "email": "jane_doe@dlsu.edu.ph",
+    "mobile": "09111111111",
+    "course": "BSCS",
+    "year": "2",
+    "password": "hello123",
+    "profilePicture": "",
+    "status": "active"
+  }
+]

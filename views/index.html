@@ -79,98 +79,47 @@
         </div>
 
         <script>
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
 
-            const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-            const events = JSON.parse(localStorage.getItem("events"));
-
-            document.getElementById("upcomingCount").textContent = events.length;
-
-            // Redirect to login if no user is logged in
             if (!currentUser) {
-                window.location.href = "/login";
+                window.location.href = '/login';
             } else {
-
-                // Display logged-in user's name
-                document.getElementById("profileName").textContent =
-                    currentUser.firstName + " " + currentUser.lastName;
-
-                // Display initials as avatar
-                document.getElementById("avatar").textContent =
-                    currentUser.firstName.charAt(0).toUpperCase() +
-                    currentUser.lastName.charAt(0).toUpperCase();
-
+                document.getElementById('profileName').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+                document.getElementById('avatar').textContent = `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
+                loadEvents();
             }
 
             function logout() {
-
-                localStorage.removeItem("currentUser");
-
-                window.location.href = "/login";
-
-            }
-
-            // Map each category to the existing tag color classes defined in styles.css
-            const categoryTagClass = {
-                'Meeting': 'work',
-                'Seminar/Workshop': 'personal',
-                'Gathering': 'entertainment'
-            };
-
-            // Creates a default entry if the object is empty
-            if (!events) {
-                events = [
-                    {   
-                        name: "General Assembly",
-                        date: "2026-07-18",
-                        startTime: "17:00",
-                        endTime: "19:00",
-                        venue: "G106",
-                        category: "Gathering",
-                        capacity: 60,
-                        description: "All members are required to attend this term's General Assembly."
-                    }
-                ];
-
-                localStorage.setItem("events", JSON.stringify(events));
+                localStorage.removeItem('currentUser');
+                window.location.href = '/login';
             }
 
             function formatDate(dateStr) {
-                const date = new Date(dateStr);
-
-                return {
-                    day: date.getDate(),
-                    month: date.toLocaleString("en-US", { month: "short" })
-                };
+                const date = new Date(`${dateStr}T00:00:00`);
+                return { day: date.getDate(), month: date.toLocaleString('en-US', { month: 'short' }) };
             }
 
-            // HTML container for all the events
-            const container = document.getElementById("eventsContainer");
+            function escapeHtml(value) {
+                return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+            }
 
-            // Sorts events by latest
-            events.sort((a, b) => {
-                return new Date(a.date + "T" + a.startTime) -
-                new Date(b.date + "T" + b.startTime);
-            });
-
-            // Displays every event in the object by separating them into its own row
-            events.forEach(event => {
-                const formattedDate = formatDate(event.date);
-
-                container.innerHTML += ` 
-                    <div class="event-row">
-                            <div class="date-chip">
-                                <b>${formattedDate.day}</b>
-                                <span>${formattedDate.month}</span>
-                            </div>
-                            <div>
-                                <div class="event-title">${event.name}</div>
-                                <div class="event-meta">${event.venue}<span class="tag ${categoryTagClass[event.category]}">${event.category}</span></div>
-                            </div>
-                            <button class="ghost-btn" onclick="window.location.href='/event-details'">Details</button>
-                        </div>  
-                `;
-            })
-
+            async function loadEvents() {
+                const container = document.getElementById('eventsContainer');
+                try {
+                    const response = await fetch('/api/events');
+                    if (!response.ok) throw new Error('Unable to load events');
+                    const events = await response.json();
+                    events.sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
+                    document.getElementById('upcomingCount').textContent = events.length;
+                    container.innerHTML = events.map(event => {
+                        const date = formatDate(event.date);
+                        return `<div class="event-row"><div class="date-chip"><b>${date.day}</b><span>${date.month}</span></div><div><div class="event-title">${escapeHtml(event.name || event.title)}</div><div class="event-meta">${escapeHtml(event.venue || event.location)}<span class="tag ${categoryTagClass[event.category] || 'work'}">${escapeHtml(event.category || 'Meeting')}</span></div></div><button class="ghost-btn" onclick="window.location.href='/event-details?id=${encodeURIComponent(event.id)}'">Details</button></div>`;
+                    }).join('') || '<p class="no-events">No upcoming events yet.</p>';
+                } catch (error) {
+                    container.innerHTML = '<p class="no-events">Unable to load events. Please refresh and try again.</p>';
+                }
+            }
         </script>
 
     </body>

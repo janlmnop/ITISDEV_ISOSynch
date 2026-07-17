@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Event Manager System</title>
+        <style>
+            :root {
+                --primary: #4f46e5;
+                --primary-hover: #4338ca;
+                --background: #f9fafb;
+                --surface: #ffffff;
+                --text: #1f2937;
+                --text-light: #6b7280;
+                --border: #e5e7eb;
+                --danger: #ef4444;
+            }
+
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                background-color: var(--background);
+                color: var(--text);
+                margin: 0;
+                padding: 2rem;
+                display: flex;
+                justify-content: center;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 900px;
+            }
+
+            header {
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+
+            h1 {
+                margin: 0 0 0.5rem 0;
+                color: var(--primary);
+            }
+
+            .card {
+                background: var(--surface);
+                padding: 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                margin-bottom: 2rem;
+            }
+
+            /* Form Styles */
+            .form-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .form-group {
+                display: flex;
+                flex-direction: column;
+            }
+
+            label {
+                font-weight: 500;
+                margin-bottom: 0.25rem;
+                font-size: 0.9rem;
+            }
+
+            input, select {
+                padding: 0.5rem;
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                font-size: 1rem;
+            }
+
+            button {
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                padding: 0.6rem 1.2rem;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 1rem;
+                transition: background 0.2s;
+            }
+
+            button:hover {
+                background-color: var(--primary-hover);
+            }
+
+            .btn-danger {
+                background-color: var(--danger);
+                padding: 0.4rem 0.8rem;
+                font-size: 0.85rem;
+            }
+
+            .btn-danger:hover {
+                background-color: #dc2626;
+            }
+
+            /* Table Styles */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                text-align: left;
+            }
+
+            th, td {
+                padding: 0.75rem;
+                border-bottom: 1px solid var(--border);
+            }
+
+            th {
+                background-color: #f3f4f6;
+                font-weight: 600;
+            }
+
+            tr:hover {
+                background-color: #f9fafb;
+            }
+
+            .no-events {
+                text-align: center;
+                color: var(--text-light);
+                padding: 2rem;
+            }
+        </style>
+    </head>
+    <body>
+
+    <div class="container">
+        <header>
+            <h1>Event Manager</h1>
+            <p style="color: var(--text-light); margin: 0;">Keep track of your upcoming schedules and gatherings.</p>
+        </header>
+
+        <!-- Create Event Form -->
+        <div class="card">
+            <h3>Create New Event</h3>
+            <form id="eventForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="eventName">Event Name</label>
+                        <input type="text" id="eventName" required placeholder="e.g., Annual Tech Summit">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDate">Date</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventLocation">Location</label>
+                        <input type="text" id="eventLocation" required placeholder="e.g., Conference Hall A">
+                    </div>
+                    <div class="form-group">
+                        <label for="eventCategory">Category</label>
+                        <select id="eventCategory">
+                            <option value="Work">Work</option>
+                            <option value="Social">Social</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit">Add Event</button>
+            </form>
+        </div>
+
+        <!-- Event List Table -->
+        <div class="card">
+            <h3>Upcoming Events</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event Name</th>
+                            <th>Date</th>
+                            <th>Location</th>
+                            <th>Category</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventTableBody">
+                        <!-- Dynamic content will go here -->
+                    </tbody>
+                </table>
+                <div id="noEventsMessage" class="no-events">No events scheduled yet. Add one above!</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Array to store event data
+        let events = [];
+
+        const eventForm = document.getElementById('eventForm');
+        const eventTableBody = document.getElementById('eventTableBody');
+        const noEventsMessage = document.getElementById('noEventsMessage');
+
+        // Handle form submission
+        eventForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Get values from input fields
+            const name = document.getElementById('eventName').value;
+            const date = document.getElementById('eventDate').value;
+            const location = document.getElementById('eventLocation').value;
+            const category = document.getElementById('eventCategory').value;
+
+            // Create event object
+            const newEvent = {
+                id: Date.now(), // Unique ID using timestamp
+                name,
+                date,
+                location,
+                category
+            };
+
+            // Add to array and update UI
+            events.push(newEvent);
+            updateEventTable();
+            
+            // Reset form
+            eventForm.reset();
+        });
+
+        // Function to delete an event
+        function deleteEvent(id) {
+            events = events.filter(event => event.id !== id);
+            updateEventTable();
+        }
+
+        // Function to render the table rows
+        function updateEventTable() {
+            // Clear current rows
+            eventTableBody.innerHTML = '';
+
+            if (events.length === 0) {
+                noEventsMessage.style.display = 'block';
+                return;
+            }
+
+            noEventsMessage.style.display = 'none';
+
+            // Loop through events and append to table
+            events.forEach(event => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <strong>${event.name}</strong>
+                    <td>${event.date}</td>
+                    <td>${event.location}</td>
+                    <td><span style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 12px; font-size: 0.85rem;">${event.category}</span></td>
+                    <td><button class="btn-danger" onclick="deleteEvent(${event.id})">Delete</button></td>
+                `;
+                
+                // Fix text rendering structure
+                row.cells[0].innerHTML = `<strong>${event.name}</strong>`;
+                
+                eventTableBody.appendChild(row);
+            });
+        }
+    </script>
+
+    </body>
+</html>

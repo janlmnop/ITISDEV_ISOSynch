@@ -101,7 +101,7 @@
 
 <script>
 
-document.getElementById("registerForm").addEventListener("submit", function (e) {
+document.getElementById("registerForm").addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
@@ -131,37 +131,22 @@ document.getElementById("registerForm").addEventListener("submit", function (e) 
         return;
     }
 
-    // Get existing users
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-
-    // Check duplicate email
-    const existingUser = users.find(user => user.email === email);
-
-    if (existingUser) {
-        alert("An account with this email already exists.");
-        return;
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ firstName, lastName, email, mobile, course, year, password })
+        });
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            alert(result.error === 'email already registered' ? 'An account with this email already exists.' : 'Unable to create your account. Please check your details.');
+            return;
+        }
+        alert("Registration successful! You can now log in.");
+        window.location.href = "/login";
+    } catch (error) {
+        alert('Unable to create your account. Please try again.');
     }
-
-    // Create new user
-    const newUser = {
-        id: Date.now(),
-        firstName,
-        lastName,
-        email,
-        mobile,
-        course,
-        year,
-        password,
-        profilePicture: ""
-    };
-
-    users.push(newUser);
-
-    localStorage.setItem("users", JSON.stringify(users));
-
-    alert("Registration successful!");
-
-    window.location.href = "/login";
 
 });
 

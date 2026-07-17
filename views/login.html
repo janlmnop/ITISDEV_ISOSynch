@@ -70,7 +70,7 @@
 
 <script>
 
-document.getElementById("loginForm").addEventListener("submit", function(e){
+document.getElementById("loginForm").addEventListener("submit", async function(e){
 
     e.preventDefault();
 
@@ -84,22 +84,21 @@ document.getElementById("loginForm").addEventListener("submit", function(e){
         .getElementById("loginPassword")
         .value;
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const user = users.find(u =>
-        u.email === email &&
-        u.password === password
-    );
-
-    if(!user){
-        alert("Invalid email or password.");
-        return;
+    try {
+        const response = await fetch('/api/authenticate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        if (!response.ok) {
+            alert('Invalid email or password.');
+            return;
+        }
+        localStorage.setItem("currentUser", JSON.stringify(await response.json()));
+        window.location.href="/dashboard";
+    } catch (error) {
+        alert('Unable to sign in. Please try again.');
     }
-
-    // Save logged-in user
-    localStorage.setItem("currentUser", JSON.stringify(user));
-
-    window.location.href="/dashboard";
 
 });
 

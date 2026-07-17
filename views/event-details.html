@@ -52,18 +52,18 @@
         </a>
 
         <div class="page-eyebrow">Event / Details</div>
-        <div class="page-title">General Assembly</div>
+        <div class="page-title" id="eventPageTitle">Event Details</div>
 
         <div class="detail-grid">
           <!-- Left: event info -->
           <div>
             <div class="event-hero">
               <div class="hero-top">
-                <span class="tag entertainment">Gathering</span>
+                <span class="tag entertainment" id="eventCategory">Event</span>
                 <span class="tag work">Members Only</span>
               </div>
-              <h2 class="hero-title">General Assembly</h2>
-              <p class="hero-sub">All members are required to attend this term's General Assembly. We'll be covering the annual budget review, upcoming project pitches, and open floor announcements.</p>
+              <h2 class="hero-title" id="eventTitle">Loading event…</h2>
+              <p class="hero-sub" id="eventDescription"></p>
 
               <ul class="meta-list">
                 <li class="meta-item">
@@ -72,7 +72,7 @@
                   </div>
                   <div>
                     <div class="meta-label">Date</div>
-                    <div class="meta-value">July 18, 2026</div>
+                    <div class="meta-value" id="eventDate">—</div>
                   </div>
                 </li>
                 <li class="meta-item">
@@ -81,7 +81,7 @@
                   </div>
                   <div>
                     <div class="meta-label">Time</div>
-                    <div class="meta-value">5:00 PM – 7:00 PM</div>
+                    <div class="meta-value" id="eventTime">—</div>
                   </div>
                 </li>
                 <li class="meta-item">
@@ -90,7 +90,7 @@
                   </div>
                   <div>
                     <div class="meta-label">Venue</div>
-                    <div class="meta-value">G106</div>
+                    <div class="meta-value" id="eventVenue">—</div>
                   </div>
                 </li>
                 <li class="meta-item">
@@ -99,7 +99,7 @@
                   </div>
                   <div>
                     <div class="meta-label">Organizer</div>
-                    <div class="meta-value">ISO Events Head</div>
+                    <div class="meta-value" id="eventOrganizer">—</div>
                   </div>
                 </li>
               </ul>
@@ -113,10 +113,10 @@
 
             <div class="slots-row">
               <span>Slots filled</span>
-              <b id="slotsLabel">42 / 60</b>
+              <b id="slotsLabel">—</b>
             </div>
             <div class="progress-track">
-              <div class="progress-fill" id="slotsFill" style="width:70%;"></div>
+              <div class="progress-fill" id="slotsFill" style="width:0;"></div>
             </div>
 
             <button class="join-btn" id="joinBtn">
@@ -144,60 +144,84 @@
     </div>
 
     <script>
-      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-      // Redirect to login if no user is logged in
-      if (!currentUser) {
-        window.location.href = "/login";
-      } else {
-
-        // Display logged-in user's name
-        document.getElementById("profileName").textContent =
-          currentUser.firstName + " " + currentUser.lastName;
-
-        // Display initials as avatar
-        document.getElementById("avatar").textContent =
-          currentUser.firstName.charAt(0).toUpperCase() +
-          currentUser.lastName.charAt(0).toUpperCase();
-
-      }
-
-      function logout() {
-
-        localStorage.removeItem("currentUser");
-
-        window.location.href = "/login";
-
-      }
-
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
       const joinBtn = document.getElementById('joinBtn');
       const confirmedBox = document.getElementById('confirmedBox');
       const toast = document.getElementById('toast');
       const slotsLabel = document.getElementById('slotsLabel');
       const slotsFill = document.getElementById('slotsFill');
+      const eventId = new URLSearchParams(window.location.search).get('id');
+      let event;
 
-      let filled = 42;
-      const capacity = 60;
-      let joined = false;
+      if (!currentUser) {
+        window.location.href = '/login';
+      } else if (!eventId) {
+        window.location.href = '/dashboard';
+      } else {
+        document.getElementById('profileName').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+        document.getElementById('avatar').textContent = `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
+        loadEvent();
+      }
 
-      joinBtn.addEventListener('click', function () {
-        if (joined) return;
-        joined = true;
+      function formatTime(value) {
+        const [hours, minutes] = value.split(':').map(Number);
+        return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+      }
 
-        filled += 1;
+      function updateRegistration(registered) {
+        const filled = Array.isArray(event.registrations) ? event.registrations.length : 0;
+        const capacity = Number(event.capacity) || 0;
         slotsLabel.textContent = `${filled} / ${capacity}`;
-        slotsFill.style.width = `${Math.min((filled / capacity) * 100, 100)}%`;
+        slotsFill.style.width = `${capacity ? Math.min((filled / capacity) * 100, 100) : 0}%`;
+        joinBtn.disabled = registered || filled >= capacity;
+        if (registered) {
+          joinBtn.classList.add('joined');
+          joinBtn.textContent = "You're Registered";
+          confirmedBox.classList.add('show');
+        } else if (filled >= capacity) {
+          joinBtn.textContent = 'Event Full';
+        }
+      }
 
-        joinBtn.classList.add('joined');
-        joinBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          You're Registered
-        `;
+      async function loadEvent() {
+        try {
+          const response = await fetch(`/api/events/${encodeURIComponent(eventId)}`);
+          if (!response.ok) throw new Error('Event not found');
+          event = await response.json();
+          document.title = `${event.name || event.title} | ISO Synch`;
+          document.getElementById('eventPageTitle').textContent = event.name || event.title;
+          document.getElementById('eventTitle').textContent = event.name || event.title;
+          document.getElementById('eventCategory').textContent = event.category || 'Event';
+          document.getElementById('eventDescription').textContent = event.description || 'No description available.';
+          document.getElementById('eventDate').textContent = new Date(`${event.date}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          document.getElementById('eventTime').textContent = `${formatTime(event.startTime)} – ${formatTime(event.endTime)}`;
+          document.getElementById('eventVenue').textContent = event.venue || event.location || 'TBA';
+          document.getElementById('eventOrganizer').textContent = event.organizer || 'ISO Events Head';
+          updateRegistration((event.registrations || []).some(id => String(id) === String(currentUser.id)));
+        } catch (error) {
+          document.getElementById('eventTitle').textContent = 'Event unavailable';
+          document.getElementById('eventDescription').textContent = 'This event could not be found or is no longer available.';
+          joinBtn.disabled = true;
+        }
+      }
 
-        confirmedBox.classList.add('show');
-
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3200);
+      joinBtn.addEventListener('click', async () => {
+        if (!event || joinBtn.disabled) return;
+        joinBtn.disabled = true;
+        try {
+          const response = await fetch(`/api/events/${encodeURIComponent(event.id)}/registrations`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id })
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Unable to register');
+          event.registrations = Array.from({ length: result.filled });
+          updateRegistration(true);
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3200);
+        } catch (error) {
+          joinBtn.disabled = false;
+          alert(error.message === 'full' ? 'This event is already full.' : 'Unable to register for this event. Please try again.');
+        }
       });
     </script>
   </body>

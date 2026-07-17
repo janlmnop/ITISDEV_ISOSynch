@@ -1,0 +1,35 @@
+[
+  {
+    "id": "general-assembly-2026",
+    "name": "General Assembly",
+    "date": "2026-07-18",
+    "startTime": "17:00",
+    "endTime": "19:00",
+    "venue": "G106",
+    "category": "Gathering",
+    "capacity": 60,
+    "description": "All members are required to attend this term's General Assembly. We'll be covering the annual budget review, upcoming project pitches, and open floor announcements.",
+    "organizer": "ISO Events Head",
+    "status": "published",
+    "registrations": [
+      "1784267380035"
+    ]
+  },
+  {
+    "id": "1784267716733-dg0xt3",
+    "name": "Cybersecurity Seminar",
+    "date": "2026-07-18",
+    "startTime": "15:00",
+    "endTime": "17:30",
+    "venue": "G106",
+    "category": "Seminar/Workshop",
+    "capacity": 50,
+    "description": "event",
+    "organizer": "ISO Events Head",
+    "status": "published",
+    "registrations": [
+      "1784267380035",
+      "1784267779435"
+    ]
+  }
+]
