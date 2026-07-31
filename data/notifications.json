@@ -1,0 +1,13 @@
+[
+  {
+    "id": "notification-1785507096322-6ib4n6",
+    "userId": "1784267380035",
+    "eventId": "1785507094037-yhc0cu",
+    "type": "registration_confirmed",
+    "title": "You're registered for test",
+    "message": "Your event registration is confirmed.",
+    "readAt": "2026-07-31T14:11:50.415Z",
+    "createdAt": "2026-07-31T14:11:36.323Z",
+    "visibleInApp": true
+  }
+]
