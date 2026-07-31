@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require("crypto");
 const path = require('path');
 const fs = require('fs');
 const app = express();
@@ -492,12 +493,192 @@ app.put('/api/profile/:id', async (req, res) => {
   }
 });
 
+// =========================
+// Password Reset
+// =========================
+
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Please enter your email."
+      });
+    }
+
+    const users = await readJson(usersFile);
+
+    const user = users.find(
+      u =>
+        String(u.email).toLowerCase() === String(email).toLowerCase() &&
+        u.status !== "deleted"
+    );
+
+    // Don't reveal whether the email exists
+    if (!user) {
+      return res.json({
+        message:
+          "If an account with that email exists, a password reset link has been generated."
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+
+    user.resetToken = token;
+    user.resetTokenExpiry = Date.now() + (15 * 60 * 1000);
+
+    await writeJson(usersFile, users);
+
+    const resetLink =
+      `http://localhost:${port}/reset-password?token=${token}`;
+
+    console.log("\n========== PASSWORD RESET ==========");
+    console.log(resetLink);
+    console.log("====================================\n");
+
+    await sendEmail({
+      to: user.email,
+      subject: "ISO Synch Password Reset",
+      text:
+`You requested a password reset.
+
+Open this link:
+
+${resetLink}
+
+This link expires in 15 minutes.`
+    });
+
+    res.json({
+      message:
+        "If an account with that email exists, a password reset link has been generated."
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Unable to process request."
+    });
+
+  }
+});
+
+app.get('/api/reset-password/:token', async (req, res) => {
+
+    try {
+
+        const { token } = req.params;
+
+        const users = await readJson(usersFile);
+
+        const user = users.find(u =>
+            u.resetToken === token &&
+            u.resetTokenExpiry > Date.now()
+        );
+
+        if (!user) {
+
+            return res.json({
+                valid: false
+            });
+
+        }
+
+        res.json({
+            valid: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            valid: false
+        });
+
+    }
+
+});
+
+app.post('/api/reset-password', async (req, res) => {
+
+    try {
+
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({
+                message: "Invalid request."
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters."
+            });
+        }
+
+        const users = await readJson(usersFile);
+
+        const user = users.find(u =>
+            u.resetToken === token &&
+            u.resetTokenExpiry > Date.now()
+        );
+
+        if (!user) {
+
+            return res.status(400).json({
+                message: "Token expired or invalid."
+            });
+
+        }
+
+        // Update password
+        user.password = password;
+
+        // Remove token
+        delete user.resetToken;
+        delete user.resetTokenExpiry;
+
+        await writeJson(usersFile, users);
+
+        res.json({
+            message: "Password has been reset successfully."
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "Unable to reset password."
+        });
+
+    }
+
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
+});
+
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'forgot-password.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reset-password.html'));
+});
+
+app.get('/reset-error', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reset-error.html'));
 });
 
 app.get('/register', (req, res) => {
