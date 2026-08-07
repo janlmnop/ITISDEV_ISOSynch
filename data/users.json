@@ -10,7 +10,12 @@
     "password": "password",
     "profilePicture": "",
     "status": "active",
-    "role": "admin"
+    "role": "admin",
+    "notificationPreferences": {
+      "inApp": true,
+      "email": true,
+      "reminders": true
+    }
   },
   {
     "id": "1784267779435",
@@ -37,5 +42,23 @@
     "profilePicture": "",
     "status": "active",
     "role": "member"
+  },
+  {
+    "id": "1786109725979",
+    "firstName": "Michael",
+    "lastName": "De Cadiz",
+    "email": "michaeldecadiz4@gmail.com",
+    "mobile": "09954706974",
+    "course": "BSIT",
+    "year": "3",
+    "password": "123123123",
+    "profilePicture": "",
+    "status": "active",
+    "role": "member",
+    "notificationPreferences": {
+      "inApp": true,
+      "email": true,
+      "reminders": true
+    }
   }
 ]

@@ -97,6 +97,23 @@
                         <div id="eventsContainer">
                         </div>
                     </div>
+
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">Notifications<small>Updates and reminders for your registered events</small></div>
+                            <span class="tag work" id="unreadCount" hidden>0 new</span>
+                        </div>
+                        <div id="notificationsContainer" class="notifications-list"></div>
+                    </div>
+
+                    <div class="card notification-settings">
+                        <div class="card-title">Notification preferences<small>Choose how ISO Synch contacts you</small></div>
+                        <label><input type="checkbox" id="inAppPreference"> In-app notifications</label>
+                        <label><input type="checkbox" id="emailPreference"> Email event updates</label>
+                        <label><input type="checkbox" id="reminderPreference"> Email reminders</label>
+                        <button class="ghost-btn" id="saveNotificationPreferences" type="button">Save preferences</button>
+                        <span class="preferences-status" id="preferencesStatus" aria-live="polite"></span>
+                    </div>
                 </section>
             </main>
         </div>
@@ -106,6 +123,22 @@
             const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
             const eventSearch = document.getElementById('eventSearch');
             const eventCategoryFilter = document.getElementById('eventCategoryFilter');
+            const socket = new WebSocket("ws://localhost:3000");
+
+            socket.onopen = () => {
+                console.log("WebSocket connected");
+                socket.send(JSON.stringify({
+                    type: "AUTH",
+                    userId: currentUser.id
+                }));
+            }
+
+            socket.onmessage = (event) => {
+                console.log("Received WebSocket message:", event.data);
+                const notification = JSON.parse(event.data);
+                showToast(notification);
+                //loadNotifications();
+            }
 
             if (!currentUser) {
                 window.location.href = '/login';
@@ -122,9 +155,33 @@
                     if (navManageEvents) navManageEvents.style.display = 'none';
                 }
                 loadEvents();
+                loadNotifications();
+                loadNotificationPreferences();
                 let searchDebounce;
                 if (eventSearch) eventSearch.addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(loadEvents, 250); });
                 if (eventCategoryFilter) eventCategoryFilter.addEventListener('change', loadEvents);
+            }
+
+            function showToast(notification) {
+                const toast = document.createElement("div");
+                toast.className = "toast";
+                toast.innerHTML = `
+                    <strong>${notification.title}</strong>
+                    <div>${notification.message}</div>`;
+
+                document.body.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.classList.add("show");
+                });
+
+                setTimeout(() => {
+                    toast.classList.remove("show");
+
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 250);
+                }, 5000);
             }
 
             function logout() {
@@ -165,6 +222,60 @@
                     container.innerHTML = '<p class="no-events">Unable to load events. Please refresh and try again.</p>';
                 }
             }
+
+            function formatNotificationDate(value) {
+                return new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            }
+
+            async function loadNotifications() {
+                const container = document.getElementById('notificationsContainer');
+                try {
+                    const response = await fetch(`/api/notifications/${encodeURIComponent(currentUser.id)}`);
+                    if (!response.ok) throw new Error('Unable to load notifications');
+                    const notifications = await response.json();
+                    const unread = notifications.filter(notification => !notification.readAt).length;
+                    const count = document.getElementById('unreadCount');
+                    count.hidden = unread === 0;
+                    count.textContent = `${unread} new`;
+                    container.innerHTML = notifications.map(notification => `<button class="notification-item ${notification.readAt ? '' : 'unread'}" type="button" data-notification-id="${escapeHtml(notification.id)}" data-event-id="${escapeHtml(notification.eventId)}"><span><b>${escapeHtml(notification.title)}</b><small>${escapeHtml(notification.message)}</small></span><time>${formatNotificationDate(notification.createdAt)}</time></button>`).join('') || '<p class="no-events">You have no notifications yet.</p>';
+                } catch (error) {
+                    container.innerHTML = '<p class="no-events">Unable to load notifications. Please refresh and try again.</p>';
+                }
+            }
+
+            document.getElementById('notificationsContainer').addEventListener('click', async event => {
+                const item = event.target.closest('[data-notification-id]');
+                if (!item) return;
+                try { await fetch(`/api/notifications/${encodeURIComponent(item.dataset.notificationId)}/read`, { method: 'PATCH' }); } catch (error) {}
+                if (item.dataset.eventId) window.location.href = `/event-details?id=${encodeURIComponent(item.dataset.eventId)}`;
+                await loadNotifications();
+            });
+
+            async function loadNotificationPreferences() {
+                try {
+                    const response = await fetch(`/api/notification-preferences/${encodeURIComponent(currentUser.id)}`);
+                    if (!response.ok) throw new Error('Unable to load preferences');
+                    const preferences = await response.json();
+                    document.getElementById('inAppPreference').checked = preferences.inApp;
+                    document.getElementById('emailPreference').checked = preferences.email;
+                    document.getElementById('reminderPreference').checked = preferences.reminders;
+                } catch (error) {
+                    document.getElementById('preferencesStatus').textContent = 'Unable to load preferences.';
+                }
+            }
+
+            document.getElementById('saveNotificationPreferences').addEventListener('click', async () => {
+                const status = document.getElementById('preferencesStatus');
+                status.textContent = 'Saving…';
+                try {
+                    const response = await fetch(`/api/notification-preferences/${encodeURIComponent(currentUser.id)}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ inApp: document.getElementById('inAppPreference').checked, email: document.getElementById('emailPreference').checked, reminders: document.getElementById('reminderPreference').checked })
+                    });
+                    if (!response.ok) throw new Error('Unable to save preferences');
+                    status.textContent = 'Saved.';
+                } catch (error) { status.textContent = 'Could not save preferences.'; }
+            });
         </script>
 
     </body>

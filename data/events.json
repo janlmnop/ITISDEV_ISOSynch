@@ -23,13 +23,30 @@
     "endTime": "17:30",
     "venue": "G106",
     "category": "Seminar/Workshop",
-    "capacity": 50,
+    "capacity": 40,
     "description": "event",
     "organizer": "ISO Events Head",
     "status": "published",
     "registrations": [
       "1784267380035",
       "1784267779435"
+    ]
+  },
+  {
+    "id": "1785507094037-yhc0cu",
+    "name": "test",
+    "date": "2026-08-12",
+    "startTime": "10:11",
+    "endTime": "10:15",
+    "venue": "zoom",
+    "category": "Meeting",
+    "capacity": 20,
+    "description": "test",
+    "organizer": "ISO Events Head",
+    "status": "published",
+    "registrations": [
+      "1784267380035",
+      "1786109725979"
     ]
   }
 ]

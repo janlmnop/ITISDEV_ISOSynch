@@ -1,9 +1,11 @@
 const express = require('express');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
 const app = express();
 const port = 3000;
+const http = require("http");
+const WebSocket = require("ws");
 
 // Serve static files (images, css, client js) from /public
 app.use(express.static(path.join(__dirname, 'public')));
@@ -17,6 +19,8 @@ const dataDir = path.join(__dirname, 'data');
 const eventsFile = path.join(dataDir, 'events.json');
 const usersFile = path.join(dataDir, 'users.json');
 const modFile = path.join(dataDir, 'moderation.json');
+const notificationsFile = path.join(dataDir, 'notifications.json');
+const REMINDER_HOURS = Math.max(1, Number(process.env.EVENT_REMINDER_HOURS) || 24);
 
 // =========================
 // Role & Permissions (SCRUM-9)
@@ -183,6 +187,7 @@ async function ensureDataFiles() {
   }
   if (!fs.existsSync(usersFile)) await fs.promises.writeFile(usersFile, '[]', 'utf8');
   if (!fs.existsSync(modFile)) await fs.promises.writeFile(modFile, '[]', 'utf8');
+  if (!fs.existsSync(notificationsFile)) await fs.promises.writeFile(notificationsFile, '[]', 'utf8');
 }
 
 async function readJson(file) {
@@ -201,6 +206,114 @@ async function appendModeration(entry) {
   arr.push(entry);
   await writeJson(modFile, arr);
 }
+
+function notificationPreferences(user) {
+  return {
+    inApp: user.notificationPreferences?.inApp !== false,
+    email: user.notificationPreferences?.email !== false,
+    reminders: user.notificationPreferences?.reminders !== false
+  };
+}
+
+function eventDateTime(event) {
+  return new Date(`${event.date}T${event.startTime}:00`);
+}
+
+function eventDetails(event) {
+  return `${event.name} on ${event.date} at ${event.startTime} in ${event.venue}`;
+}
+
+function pushNotification(userId, notification) {
+  console.log("Looking for user:", userId);
+  const socket = onlineUsers.get(String(userId));
+  console.log("Socket found?", !!socket);
+  if(!socket) return;
+  console.log("Ready state:", socket.readyState);
+  if(socket.readyState === WebSocket.OPEN) {
+    console.log("Sending notif")
+    socket.send(JSON.stringify(notification));
+  }
+}
+
+async function sendEmail({ to, subject, text }) {
+  // Email delivery is intentionally configuration-driven. With no RESEND_API_KEY,
+  // the inbox notification is still saved and the app runs normally in development.
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) return { delivered: false };
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [to], subject, text })
+    });
+    if (!response.ok) throw new Error(`email provider returned ${response.status}`);
+    return { delivered: true };
+  } catch (error) {
+    console.error('Unable to deliver notification email:', error.message);
+    return { delivered: false };
+  }
+}
+
+async function notifyUsers({ userIds, event, type, title, message, emailSubject = title, emailText = message, reminder = false }) {
+  const ids = [...new Set((userIds || []).map(String))];
+  if (!ids.length) return [];
+  const [users, notifications] = await Promise.all([readJson(usersFile), readJson(notificationsFile)]);
+  const created = [];
+  for (const userId of ids) {
+    const user = users.find(candidate => String(candidate.id) === userId && candidate.status !== 'deleted');
+    if (!user) continue;
+    const preferences = notificationPreferences(user);
+    // One reminder of each type per event/user prevents repeated scheduler runs from spamming attendees.
+    if (reminder && notifications.some(item => String(item.userId) === userId && String(item.eventId) === String(event.id) && item.type === type)) continue;
+    const item = {
+      id: `notification-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId,
+      eventId: event.id,
+      type,
+      title,
+      message,
+      readAt: null,
+      createdAt: new Date().toISOString()
+    };
+    // Keep a delivery record even when the inbox is disabled. It prevents the
+    // scheduler from sending the same email reminder every 15 minutes.
+    item.visibleInApp = preferences.inApp;
+    notifications.push(item);
+    created.push(item);
+    pushNotification(userId, item);
+    if (preferences.email && (!reminder || preferences.reminders)) {
+      await sendEmail({ to: user.email, subject: emailSubject, text: `${emailText}\n\n${eventDetails(event)}` });
+    }
+  }
+  if (created.length) await writeJson(notificationsFile, notifications);
+  return created;
+}
+
+async function sendDueReminders() {
+  try {
+    const events = await readJson(eventsFile);
+    const now = Date.now();
+    const reminderWindow = REMINDER_HOURS * 60 * 60 * 1000;
+    for (const event of events) {
+      const startsAt = eventDateTime(event).getTime();
+      if (event.status !== 'published' || !Number.isFinite(startsAt) || startsAt <= now || startsAt - now > reminderWindow) continue;
+      await notifyUsers({
+        userIds: event.registrations,
+        event,
+        type: 'event_reminder',
+        title: `Reminder: ${event.name} is coming up`,
+        message: `Your event starts in less than ${REMINDER_HOURS} hours.`,
+        reminder: true
+      });
+    }
+  } catch (error) {
+    console.error('Unable to process event reminders:', error.message);
+  }
+}
+
+
 
 // Public events (only published), with optional ?search= and ?category= filters (SCRUM-12).
 // Reads the in-memory cache first (SCRUM-24) instead of hitting disk every time.
@@ -240,6 +353,14 @@ app.post('/api/events/:id/registrations', async (req, res) => {
     event.registrations.push(userId);
     await writeJson(eventsFile, events);
     invalidateEventsCache();
+    await notifyUsers({
+      userIds: [userId],
+      event,
+      type: 'registration_confirmed',
+      title: `You're registered for ${event.name}`,
+      message: 'Your event registration is confirmed.',
+      emailSubject: `Registration confirmed: ${event.name}`
+    });
     res.status(201).json({ registered: true, filled: event.registrations.length, capacity: Number(event.capacity) });
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
@@ -286,6 +407,7 @@ app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     if (![name, date, startTime, endTime, venue, category].every(value => typeof value === 'string' && value.trim()) || !Number.isInteger(Number(capacity)) || Number(capacity) < (event.registrations || []).length || endTime <= startTime) {
       return res.status(400).json({ error: 'invalid event' });
     }
+    const previous = { ...event };
     Object.assign(event, { name: name.trim(), date, startTime, endTime, venue: venue.trim(), category, capacity: Number(capacity), description: String(description || '').trim() });
     // Only touch the poster if a new one was actually uploaded (editing other
     // fields shouldn't silently wipe an existing poster).
@@ -298,6 +420,18 @@ app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     }
     await writeJson(eventsFile, events);
     invalidateEventsCache();
+    const changed = ['name', 'date', 'startTime', 'endTime', 'venue', 'category', 'description']
+      .filter(field => String(previous[field] || '') !== String(event[field] || ''));
+    if (changed.length && event.registrations?.length) {
+      await notifyUsers({
+        userIds: event.registrations,
+        event,
+        type: 'event_updated',
+        title: `${event.name} was updated`,
+        message: `The organizer updated: ${changed.join(', ')}.`,
+        emailSubject: `Event update: ${event.name}`
+      });
+    }
     res.json(event);
   } catch (err) { res.status(500).json({ error: 'failed' }); }
 });
@@ -360,6 +494,14 @@ app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
     events[idx].status = 'deleted';
     await writeJson(eventsFile, events);
     invalidateEventsCache();
+    await notifyUsers({
+      userIds: events[idx].registrations,
+      event: events[idx],
+      type: 'event_cancelled',
+      title: `${events[idx].name} was cancelled`,
+      message: 'This event is no longer taking place.',
+      emailSubject: `Event cancelled: ${events[idx].name}`
+    });
     const moderator = req.body.moderator || req.get('x-moderator') || 'unknown';
     await appendModeration({ action: 'delete_event', eventId: req.params.id, moderator, timestamp: new Date().toISOString() });
     res.json({ success: true });
@@ -481,12 +623,56 @@ app.post('/api/register', async (req, res) => {
     if (users.some(user => String(user.email).toLowerCase() === normalizedEmail && user.status !== 'deleted')) {
       return res.status(409).json({ error: 'email already registered' });
     }
-    const user = { id: Date.now().toString(), firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, mobile, course, year, password, profilePicture: '', status: 'active', role: 'member' };
+    const user = { id: Date.now().toString(), firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, mobile, course, year, password, profilePicture: '', status: 'active', role: 'member', notificationPreferences: { inApp: true, email: true, reminders: true } };
     users.push(user);
     await writeJson(usersFile, users);
     const { password: _password, ...safeUser } = user;
     res.status(201).json(safeUser);
   } catch (err) { res.status(500).json({ error: 'failed' }); }
+});
+
+// Notification inbox and delivery preferences. Authentication is still handled
+// client-side in this prototype, so these routes follow the existing user-id API pattern.
+app.get('/api/notifications/:userId', async (req, res) => {
+  try {
+    const notifications = await readJson(notificationsFile);
+    res.json(notifications
+      .filter(item => String(item.userId) === String(req.params.userId) && item.visibleInApp !== false)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+  } catch (err) { res.status(500).json({ error: 'failed to load notifications' }); }
+});
+
+app.patch('/api/notifications/:id/read', async (req, res) => {
+  try {
+    const notifications = await readJson(notificationsFile);
+    const notification = notifications.find(item => String(item.id) === String(req.params.id));
+    if (!notification) return res.status(404).json({ error: 'not found' });
+    notification.readAt = new Date().toISOString();
+    await writeJson(notificationsFile, notifications);
+    res.json(notification);
+  } catch (err) { res.status(500).json({ error: 'failed to update notification' }); }
+});
+
+app.get('/api/notification-preferences/:userId', async (req, res) => {
+  try {
+    const users = await readJson(usersFile);
+    const user = users.find(candidate => String(candidate.id) === String(req.params.userId) && candidate.status !== 'deleted');
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    res.json(notificationPreferences(user));
+  } catch (err) { res.status(500).json({ error: 'failed to load preferences' }); }
+});
+
+app.put('/api/notification-preferences/:userId', async (req, res) => {
+  try {
+    const { inApp, email, reminders } = req.body || {};
+    if (![inApp, email, reminders].every(value => typeof value === 'boolean')) return res.status(400).json({ error: 'invalid preferences' });
+    const users = await readJson(usersFile);
+    const user = users.find(candidate => String(candidate.id) === String(req.params.userId) && candidate.status !== 'deleted');
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    user.notificationPreferences = { inApp, email, reminders };
+    await writeJson(usersFile, users);
+    res.json(user.notificationPreferences);
+  } catch (err) { res.status(500).json({ error: 'failed to save preferences' }); }
 });
 
 // =========================
@@ -577,12 +763,192 @@ app.put('/api/profile/:id', async (req, res) => {
   }
 });
 
+// =========================
+// Password Reset
+// =========================
+
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Please enter your email."
+      });
+    }
+
+    const users = await readJson(usersFile);
+
+    const user = users.find(
+      u =>
+        String(u.email).toLowerCase() === String(email).toLowerCase() &&
+        u.status !== "deleted"
+    );
+
+    // Don't reveal whether the email exists
+    if (!user) {
+      return res.json({
+        message:
+          "If an account with that email exists, a password reset link has been generated."
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+
+    user.resetToken = token;
+    user.resetTokenExpiry = Date.now() + (15 * 60 * 1000);
+
+    await writeJson(usersFile, users);
+
+    const resetLink =
+      `http://localhost:${port}/reset-password?token=${token}`;
+
+    console.log("\n========== PASSWORD RESET ==========");
+    console.log(resetLink);
+    console.log("====================================\n");
+
+    await sendEmail({
+      to: user.email,
+      subject: "ISO Synch Password Reset",
+      text:
+`You requested a password reset.
+
+Open this link:
+
+${resetLink}
+
+This link expires in 15 minutes.`
+    });
+
+    res.json({
+      message:
+        "If an account with that email exists, a password reset link has been generated."
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Unable to process request."
+    });
+
+  }
+});
+
+app.get('/api/reset-password/:token', async (req, res) => {
+
+    try {
+
+        const { token } = req.params;
+
+        const users = await readJson(usersFile);
+
+        const user = users.find(u =>
+            u.resetToken === token &&
+            u.resetTokenExpiry > Date.now()
+        );
+
+        if (!user) {
+
+            return res.json({
+                valid: false
+            });
+
+        }
+
+        res.json({
+            valid: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            valid: false
+        });
+
+    }
+
+});
+
+app.post('/api/reset-password', async (req, res) => {
+
+    try {
+
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({
+                message: "Invalid request."
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters."
+            });
+        }
+
+        const users = await readJson(usersFile);
+
+        const user = users.find(u =>
+            u.resetToken === token &&
+            u.resetTokenExpiry > Date.now()
+        );
+
+        if (!user) {
+
+            return res.status(400).json({
+                message: "Token expired or invalid."
+            });
+
+        }
+
+        // Update password
+        user.password = password;
+
+        // Remove token
+        delete user.resetToken;
+        delete user.resetTokenExpiry;
+
+        await writeJson(usersFile, users);
+
+        res.json({
+            message: "Password has been reset successfully."
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: "Unable to reset password."
+        });
+
+    }
+
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
+});
+
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'forgot-password.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reset-password.html'));
+});
+
+app.get('/reset-error', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reset-error.html'));
 });
 
 app.get('/register', (req, res) => {
@@ -609,6 +975,46 @@ app.get('/event-details', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'event-details.html'));
 });
 
-app.listen(port, () => {
+// Check every 15 minutes. Reminders are deduplicated in notifyUsers, so a
+// restart or repeated check cannot create duplicate reminders for an attendee.
+sendDueReminders();
+const reminderInterval = setInterval(sendDueReminders, 15 * 60 * 1000);
+reminderInterval.unref();
+
+//WebSocket server
+const server = http.createServer(app);
+
+const wss = new WebSocket.Server({ server });
+
+const onlineUsers = new Map();
+
+wss.on("connection", (socket) => {
+  socket.on("message", (message) => {
+    try {
+      const data = JSON.parse(message);
+      if(data.type === "AUTH") {
+        console.log("Authenticated: ", data.userId);
+        onlineUsers.set(String(data.userId), socket);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  socket.on("close", () => {
+    for(const [id, ws] of onlineUsers) {
+      if(ws === socket) {
+        onlineUsers.delete(id);
+        break;
+      }
+    }
+  });
+});
+
+server.listen(port, () => {
   console.log(`App listening on port ${port}`);
 });
+
+/*app.listen(port, () => {
+  console.log(`App listening on port ${port}`);
+});*/
