@@ -22,6 +22,7 @@
         <nav>
           <a class="nav-item" id="nav-events" href="#events">Events</a>
           <a class="nav-item" id="nav-users" href="#users">Users</a>
+          <a class="nav-item" id="nav-analytics" href="#analytics">Analytics</a>
         </nav>
 
         <div class="sidebar-spacer"></div>
@@ -67,6 +68,22 @@
           <div id="usersView" class="card" style="display:none;margin-top:16px">
             <div class="card-head"><div class="card-title">Users<small>Registered users</small></div></div>
             <table id="usersTable"><thead><tr><th>Name</th><th>Email</th><th>Course</th><th>Role</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+
+          <div id="analyticsView" class="card" style="display:none;margin-top:16px">
+            <div class="card-head"><div class="card-title">Event Analytics<small>Signups, turnout, and category popularity</small></div></div>
+
+            <div class="stats" style="margin-bottom:22px">
+              <div class="stat n1"><div class="stat-num" id="statTotalSignups">0</div><div class="stat-label">Total signups</div></div>
+              <div class="stat n2"><div class="stat-num" id="statAvgTurnout">0%</div><div class="stat-label">Avg. turnout rate</div></div>
+              <div class="stat n3"><div class="stat-num" id="statEventCount">0</div><div class="stat-label">Events tracked</div></div>
+            </div>
+
+            <div class="card-head"><div class="card-title">Turnout by event</div></div>
+            <div id="turnoutList"></div>
+
+            <div class="card-head" style="margin-top:22px"><div class="card-title">Category popularity</div></div>
+            <div id="categoryList"></div>
           </div>
 
         </section>

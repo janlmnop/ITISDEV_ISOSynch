@@ -8,8 +8,13 @@
   const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
   const eventSearch = document.getElementById('eventSearch');
   const eventCategoryFilter = document.getElementById('eventCategoryFilter');
+  const posterInput = document.getElementById('eventPoster');
+  const posterStatus = document.getElementById('posterStatus');
+  const posterPreview = document.getElementById('posterPreview');
   let events = [];
   let editingId = null;
+  let pendingPosterDataUrl = ''; // newly-selected, already-compressed WebP for the next save
+  const MAX_POSTER_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
 
   // Role & Permissions (SCRUM-9): identify the caller's role to the server's
   // requireAdmin middleware, same pattern as admin.js.
@@ -31,6 +36,56 @@
     return qs ? `?${qs}` : '';
   }
 
+  // Image Optimization (SCRUM-23): resize + re-encode the chosen file to
+  // WebP in the browser via <canvas> before it ever leaves the client, so
+  // the upload itself is already compressed. Server double-checks the size.
+  function compressImageToWebp(file, maxDimension = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          const scale = maxDimension / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/webp', quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not read image')); };
+      img.src = objectUrl;
+    });
+  }
+
+  if (posterInput) {
+    posterInput.addEventListener('change', async () => {
+      const file = posterInput.files && posterInput.files[0];
+      pendingPosterDataUrl = '';
+      posterPreview.style.display = 'none';
+      if (!file) { posterStatus.textContent = ''; return; }
+      if (file.size > MAX_POSTER_BYTES) {
+        posterStatus.textContent = 'File size too large.';
+        posterInput.value = '';
+        return;
+      }
+      posterStatus.textContent = 'Compressing…';
+      try {
+        pendingPosterDataUrl = await compressImageToWebp(file);
+        posterPreview.src = pendingPosterDataUrl;
+        posterPreview.style.display = '';
+        const approxKb = Math.round((pendingPosterDataUrl.length * 0.75) / 1024);
+        posterStatus.textContent = `Ready — compressed to WebP, ~${approxKb}KB`;
+      } catch (error) {
+        posterStatus.textContent = 'Could not process that image.';
+      }
+    });
+  }
+
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
   }
@@ -49,6 +104,7 @@
     emptyMessage.style.display = events.length ? 'none' : 'block';
     tableBody.innerHTML = events.map(event => `
       <tr>
+        <td>${event.posterImage ? `<img src="${escapeHtml(event.posterImage)}" alt="" style="width:56px;height:36px;object-fit:cover;border-radius:6px">` : '<span class="no-events" style="padding:0;font-size:11px">None</span>'}</td>
         <td><b>${escapeHtml(event.name)}</b></td>
         <td>${formatDate(event.date)} · ${formatTime(event.startTime)} – ${formatTime(event.endTime)}</td>
         <td>${escapeHtml(event.venue)}</td>
@@ -102,6 +158,10 @@
     form.reset();
     submitButton.textContent = 'Add Event';
     cancelButton.classList.remove('show');
+    pendingPosterDataUrl = '';
+    if (posterInput) posterInput.value = '';
+    if (posterStatus) posterStatus.textContent = '';
+    if (posterPreview) posterPreview.style.display = 'none';
   }
 
   tableBody.addEventListener('click', event => {
@@ -118,6 +178,16 @@
     document.getElementById('eventCategory').value = item.category;
     document.getElementById('eventCapacity').value = item.capacity;
     document.getElementById('eventDescription').value = item.description || '';
+    pendingPosterDataUrl = '';
+    if (posterInput) posterInput.value = '';
+    if (item.posterImage && posterPreview) {
+      posterPreview.src = item.posterImage;
+      posterPreview.style.display = '';
+      posterStatus.textContent = 'Current poster shown below — choose a new file to replace it.';
+    } else if (posterPreview) {
+      posterPreview.style.display = 'none';
+      posterStatus.textContent = '';
+    }
     submitButton.textContent = 'Save Changes';
     cancelButton.classList.add('show');
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -142,6 +212,7 @@
       capacity: Number(document.getElementById('eventCapacity').value),
       description: document.getElementById('eventDescription').value.trim()
     };
+    if (pendingPosterDataUrl) payload.posterImage = pendingPosterDataUrl;
     if (payload.endTime <= payload.startTime) {
       alert('End time must be after start time.');
       return;

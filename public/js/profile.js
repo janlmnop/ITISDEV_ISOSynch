@@ -105,4 +105,85 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     });
 
+    // =========================
+    // 2-Factor Auth (SCRUM-25)
+    // =========================
+    const statusEl = document.getElementById("twoFactorStatus");
+    const setupBox = document.getElementById("twoFactorSetup");
+    const enableBtn = document.getElementById("twoFactorEnableBtn");
+    const confirmBtn = document.getElementById("twoFactorConfirmBtn");
+    const secretInput = document.getElementById("twoFactorSecret");
+    const tokenInput = document.getElementById("twoFactorToken");
+    const disableBox = document.getElementById("twoFactorDisableBox");
+    const disableBtn = document.getElementById("twoFactorDisableBtn");
+    const disableTokenInput = document.getElementById("twoFactorDisableToken");
+
+    function renderTwoFactorState(enabled) {
+        statusEl.textContent = enabled
+            ? "Status: Enabled — you'll be asked for a code each time you log in."
+            : "Status: Disabled";
+        enableBtn.style.display = enabled ? "none" : "";
+        disableBox.style.display = enabled ? "" : "none";
+        setupBox.style.display = "none";
+    }
+
+    // twoFactorEnabled comes back from /api/profile/:id (loaded above).
+    fetch(`/api/profile/${currentUser.id}`)
+        .then(r => r.json())
+        .then(u => renderTwoFactorState(!!u.twoFactorEnabled))
+        .catch(() => renderTwoFactorState(false));
+
+    enableBtn.addEventListener("click", async () => {
+        try {
+            const response = await fetch("/api/2fa/setup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: currentUser.id })
+            });
+            const data = await response.json();
+            if (!response.ok) { alert(data.error || "Unable to start 2FA setup."); return; }
+            secretInput.value = data.secret;
+            tokenInput.value = "";
+            setupBox.style.display = "";
+        } catch (err) {
+            alert("Unable to start 2FA setup.");
+        }
+    });
+
+    confirmBtn.addEventListener("click", async () => {
+        const token = tokenInput.value.trim();
+        if (!/^\d{6}$/.test(token)) { alert("Enter the 6-digit code from your app."); return; }
+        try {
+            const response = await fetch("/api/2fa/enable", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: currentUser.id, token })
+            });
+            const data = await response.json();
+            if (!response.ok) { alert(data.error || "That code didn't match. Try again."); return; }
+            alert("Two-factor authentication is now enabled.");
+            renderTwoFactorState(true);
+        } catch (err) {
+            alert("Unable to confirm 2FA setup.");
+        }
+    });
+
+    disableBtn.addEventListener("click", async () => {
+        const token = disableTokenInput.value.trim();
+        if (!/^\d{6}$/.test(token)) { alert("Enter the 6-digit code from your app."); return; }
+        try {
+            const response = await fetch("/api/2fa/disable", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: currentUser.id, token })
+            });
+            const data = await response.json();
+            if (!response.ok) { alert(data.error || "That code didn't match. Try again."); return; }
+            disableTokenInput.value = "";
+            renderTwoFactorState(false);
+        } catch (err) {
+            alert("Unable to disable 2FA.");
+        }
+    });
+
 });

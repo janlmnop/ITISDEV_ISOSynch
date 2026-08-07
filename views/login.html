@@ -54,6 +54,32 @@
 
         </form>
 
+        <form id="twoFactorForm" style="display:none">
+
+            <p class="auth-subtitle" style="margin-bottom:14px">
+                Enter the 6-digit code from your authenticator app.
+            </p>
+
+            <div class="field">
+                <label>Verification code</label>
+                <input
+                    type="text"
+                    id="twoFactorCode"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="123456"
+                    required
+                >
+            </div>
+
+            <button
+                type="submit"
+                class="primary-btn auth-btn">
+                Verify
+            </button>
+
+        </form>
+
         <p class="auth-link">
 
             Don't have an account?
@@ -69,6 +95,8 @@
 </div>
 
 <script>
+
+let pendingTwoFactorUserId = null;
 
 document.getElementById("loginForm").addEventListener("submit", async function(e){
 
@@ -94,10 +122,47 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
             alert('Invalid email or password.');
             return;
         }
-        localStorage.setItem("currentUser", JSON.stringify(await response.json()));
+        const result = await response.json();
+
+        // 2-Factor Auth (SCRUM-25): password checked out, but this account
+        // needs a verification code before we hand back the full session.
+        if (result.requiresTwoFactor) {
+            pendingTwoFactorUserId = result.userId;
+            document.getElementById("loginForm").style.display = "none";
+            document.getElementById("twoFactorForm").style.display = "";
+            document.getElementById("twoFactorCode").focus();
+            return;
+        }
+
+        localStorage.setItem("currentUser", JSON.stringify(result));
         window.location.href="/dashboard";
     } catch (error) {
         alert('Unable to sign in. Please try again.');
+    }
+
+});
+
+document.getElementById("twoFactorForm").addEventListener("submit", async function(e){
+
+    e.preventDefault();
+
+    const token = document.getElementById("twoFactorCode").value.trim();
+
+    try {
+        const response = await fetch('/api/authenticate/2fa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: pendingTwoFactorUserId, token })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            alert(result.error === 'invalid code' ? 'Incorrect code. Please try again.' : 'Unable to verify code.');
+            return;
+        }
+        localStorage.setItem("currentUser", JSON.stringify(result));
+        window.location.href="/dashboard";
+    } catch (error) {
+        alert('Unable to verify code. Please try again.');
     }
 
 });

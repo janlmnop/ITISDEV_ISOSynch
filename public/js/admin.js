@@ -3,8 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const usersTbody = document.querySelector('#usersTable tbody');
   const eventsView = document.getElementById('eventsView');
   const usersView = document.getElementById('usersView');
+  const analyticsView = document.getElementById('analyticsView');
   const navEvents = document.getElementById('nav-events');
   const navUsers = document.getElementById('nav-users');
+  const navAnalytics = document.getElementById('nav-analytics');
   const pageTitle = document.getElementById('pageTitle');
   const eventSearch = document.getElementById('eventSearch');
   const eventCategoryFilter = document.getElementById('eventCategoryFilter');
@@ -53,14 +55,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Event Analytics (SCRUM-18): signups, per-event turnout rate, and
+  // category popularity, rendered with the same progress-bar styling
+  // already used for registration slots on the event details page.
+  async function loadAnalytics(){
+    const res = await fetch('/api/admin/analytics', { headers: adminHeaders() });
+    if (!res.ok) {
+      document.getElementById('turnoutList').innerHTML = '<p class="no-events">Unable to load analytics.</p>';
+      return;
+    }
+    const data = await res.json();
+    document.getElementById('statTotalSignups').textContent = data.totalSignups;
+    document.getElementById('statAvgTurnout').textContent = data.avgTurnoutRate + '%';
+    document.getElementById('statEventCount').textContent = data.eventCount;
+
+    const turnoutList = document.getElementById('turnoutList');
+    turnoutList.innerHTML = data.perEvent.length ? data.perEvent.map(e => `
+      <div style="margin-bottom:14px">
+        <div class="slots-row"><span>${esc(e.name)} <span class="tag work">${esc(e.category||'')}</span></span><b>${e.filled}/${e.capacity} (${e.turnoutRate}%)</b></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(e.turnoutRate,100)}%"></div></div>
+      </div>`).join('') : '<p class="no-events">No events yet.</p>';
+
+    const maxSignups = Math.max(1, ...data.categoryPopularity.map(c => c.totalSignups));
+    const categoryList = document.getElementById('categoryList');
+    categoryList.innerHTML = data.categoryPopularity.length ? data.categoryPopularity.map(c => `
+      <div style="margin-bottom:14px">
+        <div class="slots-row"><span>${esc(c.category)}</span><b>${c.totalSignups} signups · ${c.eventCount} event${c.eventCount===1?'':'s'}</b></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.round((c.totalSignups/maxSignups)*100)}%"></div></div>
+      </div>`).join('') : '<p class="no-events">No events yet.</p>';
+  }
+
   function setActive(view){
+    navUsers.classList.remove('active'); navEvents.classList.remove('active'); navAnalytics.classList.remove('active');
+    usersView.style.display = 'none'; eventsView.style.display = 'none'; analyticsView.style.display = 'none';
     if (view==='users'){
-      navUsers.classList.add('active'); navEvents.classList.remove('active');
-      usersView.style.display = ''; eventsView.style.display='none'; pageTitle.textContent='User Management';
+      navUsers.classList.add('active'); usersView.style.display = ''; pageTitle.textContent='User Management';
       loadUsers();
+    } else if (view==='analytics'){
+      navAnalytics.classList.add('active'); analyticsView.style.display = ''; pageTitle.textContent='Event Analytics';
+      loadAnalytics();
     } else {
-      navEvents.classList.add('active'); navUsers.classList.remove('active');
-      eventsView.style.display = ''; usersView.style.display='none'; pageTitle.textContent='Event Management';
+      navEvents.classList.add('active'); eventsView.style.display = ''; pageTitle.textContent='Event Management';
       loadEvents();
     }
   }
@@ -100,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // hash navigation
   function navigate(){
     const h = (location.hash || '#events').replace('#','');
-    setActive(h==='users' ? 'users' : 'events');
+    setActive(h==='users' ? 'users' : h==='analytics' ? 'analytics' : 'events');
   }
   window.addEventListener('hashchange', navigate);
   navigate();

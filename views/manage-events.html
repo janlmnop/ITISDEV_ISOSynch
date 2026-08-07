@@ -94,6 +94,12 @@
                 <label>Description</label>
                 <textarea id="eventDescription" placeholder="What's this event about?"></textarea>
               </div>
+              <div class="field full">
+                <label>Event Poster (image, max 5MB &mdash; auto-compressed to WebP)</label>
+                <input type="file" id="eventPoster" accept="image/*">
+                <div id="posterStatus" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div>
+                <img id="posterPreview" style="display:none;max-width:180px;border-radius:9px;margin-top:8px;border:1px solid var(--line)">
+              </div>
               <div class="form-actions">
                 <button type="submit" class="primary-btn" id="submitBtn">Add Event</button>
                 <button type="button" class="cancel-btn" id="cancelBtn">Cancel</button>
@@ -122,7 +128,7 @@
             </div>
             <table>
               <thead>
-                <tr><th>Event Name</th><th>Date &amp; Time</th><th>Venue</th><th>Category</th><th>Cap</th><th>Action</th></tr>
+                <tr><th>Poster</th><th>Event Name</th><th>Date &amp; Time</th><th>Venue</th><th>Category</th><th>Cap</th><th>Action</th></tr>
               </thead>
               <tbody id="eventTableBody">
               </tbody>
