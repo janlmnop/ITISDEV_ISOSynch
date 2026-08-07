@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 const port = 3000;
+const http = require("http");
+const WebSocket = require("ws");
 
 // Serve static files (images, css, client js) from /public
 app.use(express.static(path.join(__dirname, 'public')));
@@ -105,6 +107,18 @@ function eventDetails(event) {
   return `${event.name} on ${event.date} at ${event.startTime} in ${event.venue}`;
 }
 
+function pushNotification(userId, notification) {
+  console.log("Looking for user:", userId);
+  const socket = onlineUsers.get(String(userId));
+  console.log("Socket found?", !!socket);
+  if(!socket) return;
+  console.log("Ready state:", socket.readyState);
+  if(socket.readyState === WebSocket.OPEN) {
+    console.log("Sending notif")
+    socket.send(JSON.stringify(notification));
+  }
+}
+
 async function sendEmail({ to, subject, text }) {
   // Email delivery is intentionally configuration-driven. With no RESEND_API_KEY,
   // the inbox notification is still saved and the app runs normally in development.
@@ -152,6 +166,7 @@ async function notifyUsers({ userIds, event, type, title, message, emailSubject 
     item.visibleInApp = preferences.inApp;
     notifications.push(item);
     created.push(item);
+    pushNotification(userId, item);
     if (preferences.email && (!reminder || preferences.reminders)) {
       await sendEmail({ to: user.email, subject: emailSubject, text: `${emailText}\n\n${eventDetails(event)}` });
     }
@@ -181,6 +196,8 @@ async function sendDueReminders() {
     console.error('Unable to process event reminders:', error.message);
   }
 }
+
+
 
 // Public events (only published), with optional ?search= and ?category= filters (SCRUM-12)
 app.get('/api/events', async (req, res) => {
@@ -711,6 +728,40 @@ sendDueReminders();
 const reminderInterval = setInterval(sendDueReminders, 15 * 60 * 1000);
 reminderInterval.unref();
 
-app.listen(port, () => {
+//WebSocket server
+const server = http.createServer(app);
+
+const wss = new WebSocket.Server({ server });
+
+const onlineUsers = new Map();
+
+wss.on("connection", (socket) => {
+  socket.on("message", (message) => {
+    try {
+      const data = JSON.parse(message);
+      if(data.type === "AUTH") {
+        console.log("Authenticated: ", data.userId);
+        onlineUsers.set(String(data.userId), socket);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  socket.on("close", () => {
+    for(const [id, ws] of onlineUsers) {
+      if(ws === socket) {
+        onlineUsers.delete(id);
+        break;
+      }
+    }
+  });
+});
+
+server.listen(port, () => {
   console.log(`App listening on port ${port}`);
 });
+
+/*app.listen(port, () => {
+  console.log(`App listening on port ${port}`);
+});*/

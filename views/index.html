@@ -123,6 +123,22 @@
             const categoryTagClass = { Meeting: 'work', 'Seminar/Workshop': 'personal', Gathering: 'entertainment' };
             const eventSearch = document.getElementById('eventSearch');
             const eventCategoryFilter = document.getElementById('eventCategoryFilter');
+            const socket = new WebSocket("ws://localhost:3000");
+
+            socket.onopen = () => {
+                console.log("WebSocket connected");
+                socket.send(JSON.stringify({
+                    type: "AUTH",
+                    userId: currentUser.id
+                }));
+            }
+
+            socket.onmessage = (event) => {
+                console.log("Received WebSocket message:", event.data);
+                const notification = JSON.parse(event.data);
+                showToast(notification);
+                //loadNotifications();
+            }
 
             if (!currentUser) {
                 window.location.href = '/login';
@@ -144,6 +160,28 @@
                 let searchDebounce;
                 if (eventSearch) eventSearch.addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(loadEvents, 250); });
                 if (eventCategoryFilter) eventCategoryFilter.addEventListener('change', loadEvents);
+            }
+
+            function showToast(notification) {
+                const toast = document.createElement("div");
+                toast.className = "toast";
+                toast.innerHTML = `
+                    <strong>${notification.title}</strong>
+                    <div>${notification.message}</div>`;
+
+                document.body.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.classList.add("show");
+                });
+
+                setTimeout(() => {
+                    toast.classList.remove("show");
+
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 250);
+                }, 5000);
             }
 
             function logout() {
