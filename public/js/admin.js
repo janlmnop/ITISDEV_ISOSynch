@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const eventsView = document.getElementById('eventsView');
   const usersView = document.getElementById('usersView');
   const analyticsView = document.getElementById('analyticsView');
-  const navEvents = document.getElementById('nav-events');
   const navUsers = document.getElementById('nav-users');
   const navAnalytics = document.getElementById('nav-analytics');
   const pageTitle = document.getElementById('pageTitle');
