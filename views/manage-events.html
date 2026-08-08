@@ -33,6 +33,9 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 16l2 2 4-4"/></svg>
             Manage Events
           </a>
+          <a class="nav-item" id="adminDashboardLink" href="/admin" style="display:none;">
+              Admin Dashboard
+          </a>
           <a class="nav-item" href="/profile">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21a8 8 0 0 0-16 0"/>
@@ -152,6 +155,9 @@
     <script>
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
+      if (currentUser && currentUser.role === 'admin') {
+          document.getElementById('adminDashboardLink').style.display = '';
+      }
       // Redirect to login if no user is logged in.
       // Role & Permissions (SCRUM-9): members can't add/edit/delete events,
       // so only admins get to use this page — send members back to the
