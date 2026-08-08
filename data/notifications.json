@@ -273,5 +273,27 @@
     "readAt": null,
     "createdAt": "2026-08-07T14:30:45.099Z",
     "visibleInApp": true
+  },
+  {
+    "id": "notification-1786148700022-s4e1ga",
+    "userId": "1786148654204",
+    "eventId": "general-assembly-2026",
+    "type": "registration_confirmed",
+    "title": "You're registered for General Assembly",
+    "message": "Your event registration is confirmed.",
+    "readAt": null,
+    "createdAt": "2026-08-08T00:25:00.022Z",
+    "visibleInApp": true
+  },
+  {
+    "id": "notification-1786148725318-o9f8m0",
+    "userId": "1786148654204",
+    "eventId": "1784267716733-dg0xt3",
+    "type": "registration_confirmed",
+    "title": "You're registered for Cybersecurity Seminar",
+    "message": "Your event registration is confirmed.",
+    "readAt": "2026-08-08T00:27:50.196Z",
+    "createdAt": "2026-08-08T00:25:25.319Z",
+    "visibleInApp": true
   }
 ]

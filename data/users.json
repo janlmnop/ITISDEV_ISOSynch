@@ -60,5 +60,23 @@
       "email": true,
       "reminders": true
     }
+  },
+  {
+    "id": "1786148654204",
+    "firstName": "test",
+    "lastName": "ing",
+    "email": "testing@dlsu.edu.ph",
+    "mobile": "09369118178",
+    "course": "BSIT",
+    "year": "3",
+    "password": "password",
+    "profilePicture": "",
+    "status": "active",
+    "role": "member",
+    "notificationPreferences": {
+      "inApp": true,
+      "email": true,
+      "reminders": true
+    }
   }
 ]
