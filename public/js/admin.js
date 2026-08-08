@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     eventsTbody.innerHTML = '';
     for (const e of items) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${esc(e.name)}</td><td>${esc(e.organizer||'')}</td><td>${esc(e.date||'')}</td><td>${esc(e.venue||'')}</td><td>${esc(e.status||'')}</td><td><button class="view-btn" data-id="${e.id}">View</button> <button class="delete-btn" data-id="${e.id}">Delete</button></td>`;
+      tr.innerHTML = `<td>${esc(e.name)}</td><td>${esc(e.organizer||'')}</td><td>${esc(e.date||'')}</td><td>${esc(e.venue||'')}</td><td>${esc(e.status||'')}</td><td><a class="view-btn" href="/event-details?id=${encodeURIComponent(e.id)}">View</a> <button class="delete-btn" data-id="${e.id}">Delete</button></td>`;
       eventsTbody.appendChild(tr);
     }
   }
@@ -85,20 +85,35 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`).join('') : '<p class="no-events">No events yet.</p>';
   }
 
-  function setActive(view){
-    navUsers.classList.remove('active'); navEvents.classList.remove('active'); navAnalytics.classList.remove('active');
-    usersView.style.display = 'none'; eventsView.style.display = 'none'; analyticsView.style.display = 'none';
-    if (view==='users'){
-      navUsers.classList.add('active'); usersView.style.display = ''; pageTitle.textContent='User Management';
-      loadUsers();
-    } else if (view==='analytics'){
-      navAnalytics.classList.add('active'); analyticsView.style.display = ''; pageTitle.textContent='Event Analytics';
-      loadAnalytics();
+  function setActive(view) {
+
+    navUsers.classList.remove('active');
+    navAnalytics.classList.remove('active');
+
+    usersView.style.display = 'none';
+    analyticsView.style.display = 'none';
+
+    if (view === 'analytics') {
+
+        navAnalytics.classList.add('active');
+
+        analyticsView.style.display = '';
+
+        pageTitle.textContent = 'Event Analytics';
+
+        loadAnalytics();
+
     } else {
-      navEvents.classList.add('active'); eventsView.style.display = ''; pageTitle.textContent='Event Management';
-      loadEvents();
+
+        navUsers.classList.add('active');
+
+        usersView.style.display = '';
+
+        pageTitle.textContent = 'User Management';
+
+        loadUsers();
     }
-  }
+}
 
   document.body.addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button'); if (!btn) return;
@@ -133,10 +148,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // hash navigation
-  function navigate(){
-    const h = (location.hash || '#events').replace('#','');
-    setActive(h==='users' ? 'users' : h==='analytics' ? 'analytics' : 'events');
-  }
+  function navigate() {
+
+    const h = (location.hash || '#users').replace('#', '');
+
+    setActive(
+        h === 'analytics'
+            ? 'analytics'
+            : 'users'
+    );
+}
   window.addEventListener('hashchange', navigate);
   navigate();
 });
