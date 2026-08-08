@@ -141,7 +141,12 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
         }
 
         localStorage.setItem("currentUser", JSON.stringify(result));
-        window.location.href="/dashboard";
+
+        if (result.role === "admin") {
+            window.location.href="/admin";
+        } else {
+            window.location.href="/dashboard";
+        }
     } catch (error) {
         alert('Unable to sign in. Please try again.');
     }
@@ -166,7 +171,12 @@ document.getElementById("twoFactorForm").addEventListener("submit", async functi
             return;
         }
         localStorage.setItem("currentUser", JSON.stringify(result));
-        window.location.href="/dashboard";
+
+        if (result.role === "admin") {
+            window.location.href="/admin";
+        } else {
+            window.location.href="/dashboard";
+        }
     } catch (error) {
         alert('Unable to verify code. Please try again.');
     }
