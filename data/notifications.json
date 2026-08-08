@@ -281,7 +281,7 @@
     "type": "registration_confirmed",
     "title": "You're registered for General Assembly",
     "message": "Your event registration is confirmed.",
-    "readAt": null,
+    "readAt": "2026-08-08T00:41:01.809Z",
     "createdAt": "2026-08-08T00:25:00.022Z",
     "visibleInApp": true
   },
@@ -292,7 +292,7 @@
     "type": "registration_confirmed",
     "title": "You're registered for Cybersecurity Seminar",
     "message": "Your event registration is confirmed.",
-    "readAt": "2026-08-08T00:27:50.196Z",
+    "readAt": "2026-08-08T00:40:55.899Z",
     "createdAt": "2026-08-08T00:25:25.319Z",
     "visibleInApp": true
   }
